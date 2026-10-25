@@ -34,6 +34,7 @@ chrono = { version = "0.4", features = ["serde"] }
 thiserror = "2"
 fs2 = "0.4"
 urlencoding = "2"
+quick-xml = "0.37"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "gif"] }
 
 [target.'cfg(windows)'.dependencies]

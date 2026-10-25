@@ -324,9 +324,6 @@
       {:else}
         <p class="muted">Loading your settings…</p>
       {/if}
-      {#if settings.tools && !settings.tools.kepubify}
-        <p class="note">Install kepubify for faster Kobo books; until then books are sent as plain EPUB.</p>
-      {/if}
     </div>
   </div>
 
@@ -746,9 +743,6 @@
   .toggle-desc {
     font-size: 13px;
     color: var(--muted);
-  }
-  .settings .note {
-    margin-top: 8px;
   }
 
   .supported {

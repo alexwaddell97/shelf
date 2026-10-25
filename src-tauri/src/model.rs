@@ -142,7 +142,6 @@ pub struct Settings {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Tools {
-    pub kepubify: Option<String>,
     pub calibre: Option<String>,
 }
 
@@ -160,6 +159,8 @@ pub struct ImportProgress {
 #[serde(rename_all = "camelCase")]
 pub struct SyncProgress {
     pub device_id: String,
+    /// "sending" (copying books), "reading" (updating reading progress) or "importing".
+    pub phase: &'static str,
     pub done: usize,
     pub total: usize,
     pub current: Option<String>,

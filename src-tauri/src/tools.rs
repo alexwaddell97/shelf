@@ -1,7 +1,7 @@
 //! Finds the optional external tools Shelf can use.
 
 use crate::model::Tools;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 fn exe(name: &str) -> String {
     if cfg!(windows) {
@@ -18,16 +18,6 @@ fn on_path(name: &str) -> Option<PathBuf> {
         .flat_map(|paths| std::env::split_paths(&paths).collect::<Vec<_>>())
         .map(|dir| dir.join(&file))
         .find(|candidate| candidate.is_file())
-}
-
-/// kepubify (https://pgaskin.net/kepubify/) converts EPUB to Kobo's kepub format.
-/// Looked for on PATH and in Shelf's own tools folder.
-pub fn kepubify(data_dir: &Path) -> Option<PathBuf> {
-    let bundled = data_dir.join("tools").join(exe("kepubify"));
-    if bundled.is_file() {
-        return Some(bundled);
-    }
-    on_path("kepubify")
 }
 
 /// calibre's command-line converter, used for formats Shelf can't convert itself.
@@ -48,9 +38,8 @@ pub fn ebook_convert() -> Option<PathBuf> {
     known.iter().map(PathBuf::from).find(|p| p.is_file())
 }
 
-pub fn find(data_dir: &Path) -> Tools {
+pub fn find() -> Tools {
     Tools {
-        kepubify: kepubify(data_dir).map(|p| p.display().to_string()),
         calibre: ebook_convert().map(|p| p.display().to_string()),
     }
 }

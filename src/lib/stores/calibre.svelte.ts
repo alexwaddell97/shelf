@@ -73,7 +73,7 @@ class CalibreStore {
     this.pending = null;
     this.running = true;
     this.report = null;
-    this.progress = { deviceId: '', done: 0, total: summary.bookCount, current: null };
+    this.progress = { deviceId: '', phase: 'importing', done: 0, total: summary.bookCount, current: null };
     try {
       const report = await attempt('The calibre import failed', () => importCalibre(summary.path));
       if (report) {

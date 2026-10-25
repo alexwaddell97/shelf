@@ -8,7 +8,6 @@ use crate::model::Book;
 use rusqlite::Connection;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 pub const KIND: &str = "kobo";
 
@@ -27,12 +26,28 @@ pub fn detect(root: &Path) -> Option<Mounted> {
         .next()
         .map(str::trim)
         .filter(|s| !s.is_empty())?;
+    // The last field ends with the model code, e.g. "...-000000000388".
+    let model = version
+        .trim()
+        .rsplit(',')
+        .next()
+        .and_then(|id| id.rsplit('-').next())
+        .unwrap_or("");
     Some(Mounted {
         id: format!("kobo-{serial}"),
-        name: "Kobo eReader".into(),
+        name: model_name(model).unwrap_or("Kobo eReader").into(),
         kind: KIND,
         mount: root.to_path_buf(),
     })
+}
+
+/// Display names for model codes in `.kobo/version`. Only codes confirmed on a real
+/// device are listed; contributors can add theirs (see CONTRIBUTING.md).
+fn model_name(code: &str) -> Option<&'static str> {
+    match code.trim_start_matches('0') {
+        "388" => Some("Kobo Libra 2"),
+        _ => None,
+    }
 }
 
 /// The device-relative path for a book, with forward slashes.
@@ -41,44 +56,14 @@ fn device_rel_path(book: &Book, ext: &str) -> String {
     format!("{BOOKS_DIR}/{stem}.{ext}")
 }
 
-/// Runs kepubify on an EPUB, returning the converted file.
-fn convert_to_kepub(kepubify: &Path, input: &Path, work_dir: &Path) -> Result<PathBuf> {
-    let out_dir = work_dir.join(format!("kepub-{}", std::process::id()));
-    let _ = fs::remove_dir_all(&out_dir);
-    fs::create_dir_all(&out_dir)?;
-    let mut cmd = Command::new(kepubify);
-    cmd.arg("-o").arg(&out_dir).arg(input);
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        cmd.creation_flags(CREATE_NO_WINDOW);
-    }
-    let output = cmd.output()?;
-    if !output.status.success() {
-        return Err(Error::msg(format!(
-            "kepubify couldn't convert it: {}",
-            String::from_utf8_lossy(&output.stderr).trim()
-        )));
-    }
-    fs::read_dir(&out_dir)?
-        .flatten()
-        .map(|e| e.path())
-        .find(|p| p.is_file())
-        .ok_or_else(|| Error::msg("kepubify didn't produce a file."))
-}
-
-/// Copies a book onto the device, converting EPUB to kepub when kepubify is available.
-/// Returns the path on the device, relative to its root.
 /// Copies a book onto the device, with Shelf's metadata and cover written into the copy,
-/// converting EPUB to kepub when kepubify is available. A book that's already on the
+/// converting EPUB to kepub (Kobo's native format) when `convert` is on. A book that's already on the
 /// device (`existing`) is overwritten at the same path, so its reading position is kept.
 /// Returns the path on the device, relative to its root.
 pub fn send_book(
     mount: &Path,
     book: &Book,
     existing: Option<&str>,
-    kepubify: Option<&Path>,
     convert: bool,
     work_dir: &Path,
 ) -> Result<String> {
@@ -103,15 +88,21 @@ pub fn send_book(
             file = tagged;
         }
     }
-    let ext = match (book.format.as_str(), kepubify) {
-        ("epub", Some(tool)) if convert => {
-            let converted = convert_to_kepub(tool, &file, work_dir)?;
-            temps.push(converted.clone());
-            file = converted;
-            "kepub.epub".to_string()
+    let ext = match book.format.as_str() {
+        "epub" if convert => {
+            let converted = work_dir.join(format!("send-{}.kepub.epub", book.id));
+            match crate::kepub::convert(&file, &converted) {
+                Ok(_) => {
+                    temps.push(converted.clone());
+                    file = converted;
+                    "kepub.epub".to_string()
+                }
+                // A book too unusual to convert still reads fine as a plain EPUB.
+                Err(_) => "epub".to_string(),
+            }
         }
-        ("kepub", _) => "kepub.epub".to_string(),
-        (format, _) => format.to_string(),
+        "kepub" => "kepub.epub".to_string(),
+        format => format.to_string(),
     };
 
     let rel = match existing {
@@ -145,13 +136,16 @@ pub fn remove_book(mount: &Path, rel: &str) -> Result<()> {
 
 pub struct Reading {
     pub rel_path: String,
+    /// What the Kobo calls the book, used to recognise books sent by other apps.
+    pub title: Option<String>,
+    pub author: Option<String>,
     pub percent: f64,
     /// 0 = unread, 1 = reading, 2 = finished (Kobo's ReadStatus).
     pub status: i64,
     pub last_read: Option<String>,
 }
 
-/// Reads progress for sideloaded books from the Kobo's database. Works on a copy so the
+/// Reads the sideloaded books (and their progress) from the Kobo's database. from the Kobo's database. Works on a copy so the
 /// device's own file is never opened for writing.
 pub fn read_progress(
     mount: &Path,
@@ -176,7 +170,8 @@ pub fn read_progress(
     // Opened read-write because it's our own copy and SQLite needs to replay the WAL.
     let conn = Connection::open(&copy)?;
     let mut stmt = conn.prepare(
-        "SELECT ContentID, COALESCE(___PercentRead, 0), COALESCE(ReadStatus, 0), DateLastRead
+        "SELECT ContentID, COALESCE(___PercentRead, 0), COALESCE(ReadStatus, 0), DateLastRead,
+                Title, Attribution
          FROM content WHERE ContentType = 6 AND ContentID LIKE 'file:///mnt/onboard/%'",
     )?;
     let rows = stmt.query_map([], |r| {
@@ -186,6 +181,8 @@ pub fn read_progress(
             percent: r.get::<_, f64>(1)?,
             status: r.get(2)?,
             last_read: r.get(3)?,
+            title: r.get(4)?,
+            author: r.get(5)?,
         })
     })?;
     let readings = rows.collect::<rusqlite::Result<Vec<_>>>()?;
@@ -222,6 +219,7 @@ mod tests {
         .unwrap();
         let found = detect(dir.path()).unwrap();
         assert_eq!(found.id, "kobo-N4181C1234567");
+        assert_eq!(found.name, "Kobo Libra 2");
     }
 
     #[test]
@@ -231,9 +229,9 @@ mod tests {
         fs::create_dir_all(mount.path().join(".kobo")).unwrap();
         let conn = Connection::open(mount.path().join(".kobo/KoboReader.sqlite")).unwrap();
         conn.execute_batch(
-            "CREATE TABLE content (ContentID TEXT, ContentType INTEGER, ___PercentRead INTEGER, ReadStatus INTEGER, DateLastRead TEXT);
-             INSERT INTO content VALUES ('file:///mnt/onboard/Shelf/A - B.kepub.epub', 6, 42, 1, '2026-10-20T10:00:00Z');
-             INSERT INTO content VALUES ('file:///mnt/onboard/Shelf/A - B.kepub.epub!!chapter1', 9, 0, 0, NULL);",
+            "CREATE TABLE content (ContentID TEXT, ContentType INTEGER, ___PercentRead INTEGER, ReadStatus INTEGER, DateLastRead TEXT, Title TEXT, Attribution TEXT);
+             INSERT INTO content VALUES ('file:///mnt/onboard/Shelf/A - B.kepub.epub', 6, 42, 1, '2026-10-20T10:00:00Z', 'B', 'A');
+             INSERT INTO content VALUES ('file:///mnt/onboard/Shelf/A - B.kepub.epub!!chapter1', 9, 0, 0, NULL, NULL, NULL);",
         )
         .unwrap();
         drop(conn);

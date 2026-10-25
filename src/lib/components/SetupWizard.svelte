@@ -98,7 +98,7 @@
             <span class="dot off"></span>
             <div>
               <strong>No e-reader detected yet</strong>
-              <span>Plug it in over USB and it shows up here. You can also skip this and connect it later.</span>
+              <span>Plug it in over USB, switch it on, and on a Kobo tap “Connect” when it asks. It shows up here within a few seconds. You can also skip this and connect it later.</span>
             </div>
           </div>
         {/if}
@@ -108,9 +108,6 @@
         <p class="small">
           Kobo e-readers are fully supported today. Other makes are planned, and Shelf will tell you when it recognises one.
         </p>
-        {#if settings.tools && !settings.tools.kepubify}
-          <p class="note">Install kepubify for faster Kobo books; until then books are sent as plain EPUB.</p>
-        {/if}
       </div>
     {:else if step === 2}
       <div class="stack">

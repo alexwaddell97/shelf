@@ -37,6 +37,8 @@ See *Building from source* in the [README](README.md). The app is a [Tauri 2](ht
 3. Never write to a device's own database without saving a backup first, and prefer working on a copy.
 4. Fill in the device report template with what you tested, on which model and firmware.
 
+**Kobo model names.** Shelf names a Kobo from the model code at the end of `.kobo/version` (e.g. `...-000000000388` is a Libra 2). Only codes confirmed on a real device are listed in `model_name` in `devices/kobo.rs`; if yours shows as "Kobo eReader", add its code there with the model name.
+
 No device to hand? Make a folder that looks like one (for a Kobo: a `.kobo/version` file whose first comma-separated field is a serial number) and point Shelf at it:
 
 ```bash

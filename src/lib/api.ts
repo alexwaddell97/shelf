@@ -157,7 +157,6 @@ export interface Settings {
 }
 
 export interface Tools {
-  kepubify: string | null;
   calibre: string | null;
 }
 
@@ -174,6 +173,13 @@ export interface ImportProgress {
 
 export interface SyncProgress {
   deviceId: string;
+  /**
+   * checking: started, nothing reported yet (set by the interface)
+   * sending: copying books (done of total, current title)
+   * reading: books sent; reading the device and updating reading progress
+   * importing: a calibre import (see CalibreProgress)
+   */
+  phase: 'checking' | 'sending' | 'reading' | 'importing';
   done: number;
   total: number;
   current: string | null;

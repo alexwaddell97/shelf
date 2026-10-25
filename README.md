@@ -12,7 +12,7 @@ Drop in your EPUBs, and Shelf reads their covers and details, files them neatly,
 - **Full metadata editing** — title, authors and sort name, series and number, rating, collections, tags, publisher, date, language, ISBN and description, with Previous/Next to step through books. Covers can come from an image file or Open Library's cover search. Your edits and covers are written into the copy sent to your e-reader (your library file is left as it is), and books already on the device are updated on the next sync.
 - **Open ebooks with Shelf** — once installed and chosen as the app for `.epub`, `.mobi` or `.azw3`, double-clicking a book adds it to your library and shows it.
 - **Import anything you drop** — drag files onto the window, use *Add books*, or let Shelf watch a folder (your Downloads folder by default) and import new ebooks as they arrive. Duplicates are skipped.
-- **E-reader sync** — Shelf spots your e-reader when you plug it in over USB, sends queued books in the best format for it, and reads reading progress back. For Kobo, EPUBs are converted to kepub with [kepubify](https://pgaskin.net/kepubify/) when it's installed.
+- **E-reader sync** — Shelf spots your e-reader when you plug it in over USB, sends queued books in the best format for it, and reads reading progress back. For Kobo, EPUBs are converted to kepub, Kobo's own format, for faster page turns, reading stats and better typography. The conversion is built in, so there's nothing extra to install.
 - **Find new books** — search the [Open Library](https://openlibrary.org) catalogue from the same search box. Public-domain books from [Project Gutenberg](https://www.gutenberg.org) can be added to your library in one click; for everything else, Shelf shows links to search stores and libraries for that book.
 - **Wishlist** — save books you don't have yet. When a matching file arrives, it's matched automatically.
 - **Your own sources** — add any shop or library that has a search page, using a URL template like `https://example.com/search?q={query}`.
@@ -23,7 +23,7 @@ Drop in your EPUBs, and Shelf reads their covers and details, files them neatly,
 
 | Device | Status | Sends |
 | --- | --- | --- |
-| Kobo (Clara, Libra, Sage, Elipsa, …) | Supported | kepub (with kepubify) or EPUB |
+| Kobo (Clara, Libra, Sage, Elipsa, …) | Supported | kepub (built in) |
 | PocketBook | Planned | EPUB |
 | Tolino | Planned | EPUB |
 | Kindle | Planned (needs calibre for conversion) | AZW3 |
@@ -38,7 +38,6 @@ Shelf has no accounts, no telemetry and no analytics. It only goes online when y
 
 ## Optional tools
 
-- **kepubify** — faster page turns and reading stats on Kobo. Put `kepubify` on your `PATH`, or in Shelf's data folder under `tools/`.
 - **calibre** — if installed, its `ebook-convert` will be used for formats Shelf can't convert itself (coming with the Kindle driver).
 
 ## Building from source

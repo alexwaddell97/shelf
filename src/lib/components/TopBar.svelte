@@ -6,6 +6,24 @@
 
   const device = $derived(devices.connected[0]);
   const queue = $derived(devices.queueCount);
+  const progress = $derived(devices.progress);
+  const syncing = $derived(devices.syncing);
+  const synced = $derived(!!device && devices.justSynced === device.id);
+  // Only the copying stage has a known length; the bar never looks full before the end.
+  const percent = $derived(
+    progress?.phase === 'sending' && progress.total > 0 ? Math.round((progress.done / progress.total) * 90) : 0
+  );
+  const syncLabel = $derived(
+    syncing
+      ? progress?.phase === 'reading'
+        ? 'Updating progress…'
+        : progress?.phase === 'sending'
+          ? devices.stageLabel
+          : 'Syncing…'
+      : synced
+        ? 'Synced'
+        : 'Sync'
+  );
 
   let adding = $state(false);
   async function add() {
@@ -44,12 +62,28 @@
     Add books
   </button>
 
+  {#if device}
+    <button
+      class="btn sync"
+      class:busy={syncing}
+      class:done={synced && !syncing}
+      onclick={() => devices.sync(device.id)}
+      disabled={syncing}
+      title={queue > 0 ? `Send ${queue} waiting and update reading progress` : 'Update reading progress from your e-reader'}
+      aria-live="polite"
+    >
+      <span class="fill" style:width={syncing ? `${percent}%` : '0%'} aria-hidden="true"></span>
+      <span class="sync-icon" class:spin={syncing}><Icon name={synced && !syncing ? 'check' : 'sync'} /></span>
+      <span class="sync-label">{syncLabel}</span>
+      {#if queue > 0 && !syncing}
+        <span class="count">{queue}</span>
+      {/if}
+    </button>
+  {/if}
+
   <button class="btn device-chip" onclick={() => nav.go('devices')}>
     <span class="dot" class:pulse={!!device} class:live={!!device}></span>
     <span class="device-name">{device ? device.name : 'No e-reader'}</span>
-    {#if device && queue > 0}
-      <span class="waiting">{queue} waiting</span>
-    {/if}
   </button>
 </header>
 
@@ -120,12 +154,74 @@
   .dot.live {
     background: var(--teal);
   }
-  .waiting {
-    padding: 1px 8px;
+  .sync {
+    position: relative;
+    overflow: hidden;
+    gap: 10px;
+    min-width: 132px;
+    height: 44px;
+    padding: 0 20px;
+    justify-content: center;
+    background: var(--teal);
+    border-color: var(--teal);
+    color: #0b1a18;
+    font-weight: 700;
+    font-size: 15px;
+  }
+  .sync:hover:not(:disabled) {
+    filter: brightness(1.08);
+  }
+  .sync.busy {
+    background: var(--teal-bg);
+    border-color: var(--teal-border);
+    color: var(--teal);
+  }
+  .sync.done {
+    background: var(--teal-bg);
+    border-color: var(--teal);
+    color: var(--teal);
+  }
+  .sync:disabled {
+    cursor: default;
+    opacity: 1;
+  }
+  /* Progress fills the button from the left while syncing. */
+  .fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    background: rgba(92, 200, 186, 0.22);
+    transition: width 0.25s ease;
+  }
+  .sync-icon,
+  .sync-label,
+  .count {
+    position: relative;
+    display: flex;
+  }
+  .count {
+    min-width: 22px;
+    justify-content: center;
+    padding: 1px 7px;
     border-radius: 999px;
-    background: var(--accent);
-    color: var(--on-accent);
+    background: #0b1a18;
+    color: var(--teal);
     font-size: 12px;
     font-weight: 700;
+  }
+  .spin {
+    animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .spin {
+      animation: none;
+    }
+    .fill {
+      transition: none;
+    }
   }
 </style>

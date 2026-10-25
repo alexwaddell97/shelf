@@ -8,6 +8,7 @@ mod epub;
 mod epub_write;
 mod error;
 mod goodreads;
+mod kepub;
 mod library;
 mod model;
 mod open_with;

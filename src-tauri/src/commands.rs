@@ -142,17 +142,23 @@ pub async fn sync_device(app: AppHandle, device_id: String) -> Result<SyncReport
     blocking(move || {
         let state = app.state::<AppState>();
         let mount = mount_of(&state, &device_id)?;
-        let report = devices::sync(&state, &device_id, &mount, &|done, total, current| {
-            let _ = app.emit(
-                "sync-progress",
-                SyncProgress {
-                    device_id: device_id.clone(),
-                    done,
-                    total,
-                    current,
-                },
-            );
-        })?;
+        let report = devices::sync(
+            &state,
+            &device_id,
+            &mount,
+            &|phase, done, total, current| {
+                let _ = app.emit(
+                    "sync-progress",
+                    SyncProgress {
+                        device_id: device_id.clone(),
+                        phase,
+                        done,
+                        total,
+                        current,
+                    },
+                );
+            },
+        )?;
         let _ = app.emit("library-changed", ());
         Ok(report)
     })
@@ -287,8 +293,8 @@ pub fn save_settings(app: AppHandle, state: State<'_, AppState>, settings: Setti
 }
 
 #[tauri::command]
-pub fn get_tools(state: State<'_, AppState>) -> Tools {
-    tools::find(&state.paths.data_dir)
+pub fn get_tools() -> Tools {
+    tools::find()
 }
 
 // --- calibre import ---
@@ -312,6 +318,7 @@ pub async fn import_calibre(app: AppHandle, path: PathBuf) -> Result<calibre::Ca
                 "calibre-progress",
                 SyncProgress {
                     device_id: String::new(),
+                    phase: "importing",
                     done,
                     total,
                     current: current.map(str::to_string),

@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Book } from '$lib/api';
   import { seriesLabel, statusLabel } from '$lib/format';
+  import { bookActions } from '$lib/stores/bookActions.svelte';
   import { devices } from '$lib/stores/devices.svelte';
   import { library } from '$lib/stores/library.svelte';
   import Cover from './Cover.svelte';
@@ -19,11 +20,31 @@
   const queued = $derived(!onDevice && book.queuedFor.length > 0);
   const deviceTitle = $derived(book.onDevices.map((id) => devices.name(id)).join(', '));
   const isNew = $derived(detailed && library.fresh.includes(book.id));
-  const meta = $derived(onDevice ? statusLabel(book) : queued ? 'Waiting to send' : 'On PC only');
+  // Where the book is, then how far through it you are: "On Kobo · 42% read".
+  const where = $derived(
+    onDevice
+      ? `On ${(devices.name(book.onDevices[0]) ?? 'device').split(' ')[0]}`
+      : queued
+        ? 'Waiting to send'
+        : 'On PC only'
+  );
+  const meta = $derived(book.status === 'unread' && !onDevice ? where : `${where} · ${statusLabel(book)}`);
   const series = $derived(seriesLabel(book));
+
+  function oncontextmenu(e: MouseEvent) {
+    e.preventDefault();
+    // The keyboard's menu key reports no pointer position: open by the card instead.
+    let { clientX: x, clientY: y } = e;
+    if (x === 0 && y === 0) {
+      const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      x = r.left + 24;
+      y = r.top + 24;
+    }
+    bookActions.openMenu(x, y, book, onopen);
+  }
 </script>
 
-<button class="card" onclick={onopen} aria-label="{book.title} by {book.author}">
+<button class="card" onclick={onopen} {oncontextmenu} aria-haspopup="menu" aria-label="{book.title} by {book.author}">
   <div class="lift">
     <Cover title={book.title} author={book.author} coverPath={book.coverPath} reserveCorner />
     <!-- Round status dots in the top-right corner, which Cover keeps free of text. -->

@@ -1,21 +1,36 @@
-import { listDevices, refreshDevices, syncDevice, type Device, type SyncProgress } from '$lib/api';
-import { plural } from '$lib/format';
+import { listDevices, refreshDevices, syncDevice, type Device, type SyncProgress, type SyncReport } from '$lib/api';
 import { library } from './library.svelte';
-import { attempt, toasts } from './toast.svelte';
+import { attempt } from './toast.svelte';
 
 class DevicesStore {
   list = $state<Device[]>([]);
   loaded = $state(false);
   selectedId = $state<string | null>(null);
+  /** One line for the sync button and panel, so they always agree. */
+  get stageLabel(): string {
+    const p = this.progress;
+    if (!p || p.phase === 'checking') return 'Checking what to send…';
+    if (p.phase === 'reading') return 'Updating reading progress…';
+    return `Sending ${Math.min(p.done + 1, p.total)} of ${p.total}`;
+  }
+
   /** Live sync state; null when nothing is syncing. */
   progress = $state<SyncProgress | null>(null);
   /** Device id that just finished a sync, shown briefly as "All synced". */
   justSynced = $state<string | null>(null);
+  /** The result of the last sync, shown in the sync panel until dismissed (or for a few seconds). */
+  lastReport = $state<SyncReport | null>(null);
 
   #running = false;
   #seq = 0;
   #clearTimer: ReturnType<typeof setTimeout> | undefined;
   #syncedTimer: ReturnType<typeof setTimeout> | undefined;
+  #reportTimer: ReturnType<typeof setTimeout> | undefined;
+
+  dismissReport() {
+    clearTimeout(this.#reportTimer);
+    this.lastReport = null;
+  }
 
   get connected(): Device[] {
     return this.list.filter((d) => d.connected);
@@ -73,25 +88,16 @@ class DevicesStore {
     this.#running = true;
     clearTimeout(this.#clearTimer);
     this.justSynced = null;
-    this.progress = { deviceId, done: 0, total: 0, current: null };
+    this.dismissReport();
+    this.progress = { deviceId, phase: 'checking', done: 0, total: 0, current: null };
     try {
       const report = await attempt('Sync failed', () => syncDevice(deviceId));
       if (!report) return;
-      const name = this.name(deviceId);
-      const parts: string[] = [];
-      if (report.sent) parts.push(`${plural(report.sent, 'book')} sent to your ${name}`);
-      if (report.progressUpdated) parts.push(`reading progress updated for ${plural(report.progressUpdated, 'book')}`);
-      if (report.errors.length) {
-        const shown = report.errors.slice(0, 3).join('\n');
-        const more = report.errors.length > 3 ? `\n…and ${report.errors.length - 3} more` : '';
-        toasts.error(
-          `Sync finished with ${plural(report.errors.length, 'problem')}`,
-          shown + more
-        );
-      }
-      if (!report.errors.length || report.sent || report.progressUpdated) {
-        const text = parts.length ? parts.join(', ') : 'Everything is already up to date';
-        toasts.success(text.charAt(0).toUpperCase() + text.slice(1) + '.');
+      this.lastReport = report;
+      // A clean result fades away on its own; problems stay until dismissed.
+      if (!report.errors.length) this.#reportTimer = setTimeout(() => (this.lastReport = null), 8000);
+      // The sync panel shows the result, so no toast here.
+      if (!report.errors.length) {
         this.justSynced = deviceId;
         clearTimeout(this.#syncedTimer);
         this.#syncedTimer = setTimeout(() => (this.justSynced = null), 2600);

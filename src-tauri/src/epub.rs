@@ -167,7 +167,7 @@ pub fn plain_text(html: &str) -> String {
 }
 
 /// Joins an href from the OPF onto the OPF's own folder inside the archive.
-fn resolve(opf_path: &str, href: &str) -> String {
+pub fn resolve(opf_path: &str, href: &str) -> String {
     let href = urlencoding::decode(href)
         .map(|h| h.into_owned())
         .unwrap_or_else(|_| href.to_string());
