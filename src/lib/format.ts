@@ -139,7 +139,26 @@ export function authorEntries(b: Pick<Book, 'author' | 'authorSort'>): { key: st
     .split(/\s+&\s+/)
     .map((s) => s.trim())
     .filter(Boolean);
-  return names.map((name, i) => ({ name, key: sorts.length === names.length ? sorts[i] : name }));
+  const entries = names.map((name, i) => ({ name, key: sorts.length === names.length ? sorts[i] : name }));
+  // Some files list one person twice ("Cixin Liu & Liu, Cixin"); keep the first. Keys
+  // must be unique too, since lists of authors are keyed by them.
+  const seen = new Set<string>();
+  return entries.filter((e) => {
+    const ids = [personKey(e.name), e.key.toLowerCase()];
+    if (ids.some((id) => seen.has(id))) return false;
+    ids.forEach((id) => seen.add(id));
+    return true;
+  });
+}
+
+/** The same for "Cixin Liu" and "Liu, Cixin": the name's words, lower-cased and sorted. */
+function personKey(name: string): string {
+  return name
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(Boolean)
+    .sort()
+    .join(' ');
 }
 
 /** Sort key for an author: the calibre sort name, or the name itself. */

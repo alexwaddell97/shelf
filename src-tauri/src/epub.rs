@@ -245,7 +245,11 @@ pub fn read(path: &Path) -> Result<EpubMeta> {
                                 .map(|a| a.value().to_string());
                             first_creator_id = node.attribute("id").map(str::to_string);
                         }
-                        meta.authors.push(name);
+                        // Some files list one person twice ("Cixin Liu", "Liu, Cixin").
+                        let key = crate::db::person_key(&name);
+                        if !meta.authors.iter().any(|a| crate::db::person_key(a) == key) {
+                            meta.authors.push(name);
+                        }
                     }
                 }
                 "publisher" if meta.publisher.is_none() => meta.publisher = text_of(node),

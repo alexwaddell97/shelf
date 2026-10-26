@@ -136,7 +136,46 @@ fn migrate(conn: &Connection) -> Result<()> {
         conn.execute_batch(SCHEMA_V3)?;
         conn.pragma_update(None, "user_version", 3)?;
     }
+    if version < 4 {
+        // Some files list one author twice ("Cixin Liu" and "Liu, Cixin"); keep one.
+        let books: Vec<(i64, String)> = conn
+            .prepare("SELECT id, author FROM books WHERE author LIKE '% & %'")?
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
+            .collect::<rusqlite::Result<_>>()?;
+        for (id, author) in books {
+            let cleaned = dedupe_authors(&author);
+            if cleaned != author {
+                conn.execute(
+                    "UPDATE books SET author = ?2, author_sort = ?3 WHERE id = ?1",
+                    params![id, cleaned, author_sort(&cleaned)],
+                )?;
+            }
+        }
+        conn.pragma_update(None, "user_version", 4)?;
+    }
     Ok(())
+}
+
+/// The same for "Cixin Liu" and "Liu, Cixin": the name's words, lower-cased and sorted.
+pub fn person_key(name: &str) -> String {
+    let mut words: Vec<String> = name
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .map(str::to_lowercase)
+        .collect();
+    words.sort();
+    words.join(" ")
+}
+
+/// "Cixin Liu & Liu, Cixin" → "Cixin Liu": drops repeats of the same person.
+pub fn dedupe_authors(author: &str) -> String {
+    let mut seen = std::collections::HashSet::new();
+    author
+        .split(" & ")
+        .map(str::trim)
+        .filter(|name| !name.is_empty() && seen.insert(person_key(name)))
+        .collect::<Vec<_>>()
+        .join(" & ")
 }
 
 /// calibre-style sort name: "Frank Herbert" → "Herbert, Frank";
@@ -913,6 +952,16 @@ pub fn kv_set<T: Serialize>(conn: &Connection, key: &str, value: &T) -> Result<(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn drops_repeated_authors() {
+        assert_eq!(dedupe_authors("Cixin Liu & Liu, Cixin"), "Cixin Liu");
+        assert_eq!(
+            dedupe_authors("Daniel Abraham & Ty Franck"),
+            "Daniel Abraham & Ty Franck"
+        );
+        assert_eq!(dedupe_authors("Terry Pratchett"), "Terry Pratchett");
+    }
 
     #[test]
     fn matches_titles_with_subtitles_and_punctuation() {

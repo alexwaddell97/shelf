@@ -31,6 +31,8 @@
 </svelte:head>
 
 {#key viewKey}
+<!-- If a screen fails to draw, show a way out instead of leaving the window stuck. -->
+<svelte:boundary onerror={(error) => console.error('Screen failed to draw', error)}>
 <div class="view-in">
 {#if nav.searching}
   <SearchScreen />
@@ -59,4 +61,36 @@
   <AccountsScreen />
 {/if}
 </div>
+{#snippet failed(error, reset)}
+  <div class="screen-error" role="alert">
+    <h2>Something went wrong showing this page</h2>
+    <p class="muted">{error instanceof Error ? error.message : String(error)}</p>
+    <div class="screen-error-actions">
+      <button class="btn primary" onclick={() => { nav.go('library'); reset(); }}>Back to library</button>
+      <button class="btn" onclick={reset}>Try again</button>
+    </div>
+  </div>
+{/snippet}
+</svelte:boundary>
 {/key}
+
+<style>
+  .screen-error {
+    max-width: 520px;
+    margin: 64px auto;
+    padding: 28px;
+    border-radius: 24px;
+    background: var(--glass-thick);
+    box-shadow: var(--glass-shadow);
+    text-align: center;
+  }
+  .screen-error h2 {
+    margin-bottom: 8px;
+  }
+  .screen-error-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 18px;
+  }
+</style>
