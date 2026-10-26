@@ -238,7 +238,16 @@ pub fn sync(
         });
     let (_, updated) = reconcile(state, device_id, mount, &readings)?;
     report.progress_updated = updated;
+    db::kv_set(
+        &state.db(),
+        &last_sync_key(device_id),
+        &chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
+    )?;
     Ok(report)
+}
+
+fn last_sync_key(device_id: &str) -> String {
+    format!("last_sync:{device_id}")
 }
 
 #[cfg(test)]
@@ -448,6 +457,15 @@ mod tests {
         // First sync sends it.
         let report = sync(&state, &device.id, mount.path(), &|_, _, _, _| {}).unwrap();
         assert_eq!(report.sent, 1, "{:?}", report.errors);
+        let known = list(&state).unwrap();
+        assert!(
+            known
+                .iter()
+                .find(|d| d.id == device.id)
+                .unwrap()
+                .last_synced
+                .is_some()
+        );
         let rel = db::device_book_path(&state.db(), &device.id, id)
             .unwrap()
             .unwrap();
@@ -521,7 +539,8 @@ mod tests {
 
 /// All known devices, with live details for the connected ones.
 pub fn list(state: &AppState) -> crate::error::Result<Vec<Device>> {
-    let known = db::known_devices(&state.db())?;
+    let conn = state.db();
+    let known = db::known_devices(&conn)?;
     let connected = state.connected().clone();
     Ok(known
         .into_iter()
@@ -532,10 +551,14 @@ pub fn list(state: &AppState) -> crate::error::Result<Vec<Device>> {
                 None => (None, None),
             };
             let kobo = d.kind == kobo::KIND;
+            let last_synced = db::kv_get::<String>(&conn, &last_sync_key(&d.id))
+                .ok()
+                .flatten();
             Device {
                 connected: mount.is_some(),
                 mount_path: mount.map(|p| p.display().to_string()),
                 last_seen: Some(d.last_seen),
+                last_synced,
                 support_level: if kobo {
                     "full".into()
                 } else {

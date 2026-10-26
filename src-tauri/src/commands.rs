@@ -509,3 +509,52 @@ pub fn take_pending_open(state: State<'_, AppState>) -> Option<i64> {
 pub fn open_default_apps_settings(app: AppHandle) -> bool {
     crate::open_with::open_default_apps_settings(&app)
 }
+
+// --- Reader ---
+
+/// Opens a book in its own reader window (or brings that window forward).
+// Async because creating a window from a synchronous command can deadlock on Windows.
+#[tauri::command]
+pub async fn open_reader(app: AppHandle, book_id: i64) -> Result<()> {
+    crate::reader::open(&app, book_id)
+}
+
+#[tauri::command]
+pub fn get_reading_position(
+    state: State<'_, AppState>,
+    book_id: i64,
+) -> Result<Option<db::ReadingPosition>> {
+    db::reading_position(&state.db(), book_id)
+}
+
+#[tauri::command]
+pub fn save_reading_position(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    book_id: i64,
+    position: String,
+    fraction: f64,
+) -> Result<()> {
+    db::save_reading_position(&state.db(), book_id, &position, fraction)?;
+    let _ = app.emit("library-changed", ());
+    Ok(())
+}
+
+/// The book's file, sent as raw bytes for the reader window to open.
+#[tauri::command]
+pub async fn read_book_file(app: AppHandle, book_id: i64) -> Result<tauri::ipc::Response> {
+    blocking(move || {
+        let state = app.state::<AppState>();
+        let book = db::get_book(&state.db(), book_id)?;
+        let bytes = std::fs::read(&book.file_path)
+            .map_err(|_| Error::msg("The book's file is missing from your library folder."))?;
+        Ok(tauri::ipc::Response::new(bytes))
+    })
+    .await
+}
+
+/// This computer's Downloads folder, if it has one.
+#[tauri::command]
+pub fn downloads_dir() -> Option<String> {
+    dirs::download_dir().map(|p| p.display().to_string())
+}

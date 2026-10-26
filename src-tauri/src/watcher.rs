@@ -4,11 +4,11 @@ use crate::library::{self, format_of};
 use crate::state::AppState;
 use notify::event::ModifyKind;
 use notify::{EventKind, RecursiveMode, Watcher};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 
 /// A file must keep the same size for this long before it's imported, so we don't
 /// grab a download that's still being written.
@@ -22,6 +22,13 @@ fn is_partial_download(path: &PathBuf) -> bool {
     [".crdownload", ".part", ".partial", ".download", ".tmp"]
         .iter()
         .any(|ext| name.ends_with(ext))
+}
+
+/// Stores selling DRM-protected books often hand out an `.acsm` file: a licence that Adobe
+/// Digital Editions exchanges for the actual (protected) book.
+fn is_drm_licence(path: &std::path::Path) -> bool {
+    path.extension()
+        .is_some_and(|e| e.eq_ignore_ascii_case("acsm"))
 }
 
 /// (Re)starts watching the folders in settings. Call again after settings change.
@@ -53,6 +60,7 @@ pub fn restart(app: &AppHandle) {
     std::thread::spawn(move || {
         // path → (last seen size, when it last changed)
         let mut pending: HashMap<PathBuf, (u64, Instant)> = HashMap::new();
+        let mut warned: HashSet<PathBuf> = HashSet::new();
         loop {
             match rx.recv_timeout(Duration::from_millis(700)) {
                 Ok(Ok(event)) => {
@@ -65,6 +73,15 @@ pub fn restart(app: &AppHandle) {
                     );
                     if relevant {
                         for path in event.paths {
+                            // An Adobe DRM licence, not a book: say so instead of ignoring it.
+                            if is_drm_licence(&path) && warned.insert(path.clone()) {
+                                let name = path
+                                    .file_name()
+                                    .map(|n| n.to_string_lossy().into_owned())
+                                    .unwrap_or_default();
+                                let _ = app.emit("drm-download", name);
+                                continue;
+                            }
                             if !is_partial_download(&path) && format_of(&path).is_some() {
                                 let size = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
                                 pending.insert(path, (size, Instant::now()));

@@ -403,7 +403,7 @@
     padding: 48px 24px;
     text-align: center;
     border: 1px dashed var(--border);
-    border-radius: 16px;
+    border-radius: var(--r3);
   }
   .plug-icon {
     display: flex;
@@ -411,14 +411,15 @@
     justify-content: center;
     width: 64px;
     height: 64px;
-    border-radius: 16px;
+    border-radius: var(--r3);
     background: var(--surface-tile);
     color: var(--teal);
   }
   .plug h2 {
+    font-family: var(--font-serif);
     font-size: 22px;
-    font-weight: 700;
-    letter-spacing: -0.01em;
+    font-weight: 600;
+    letter-spacing: -0.005em;
   }
   .plug p {
     max-width: 56ch;
@@ -431,7 +432,7 @@
     align-items: center;
     gap: 28px;
     padding: 24px;
-    border-radius: 16px;
+    border-radius: var(--r3);
     background: var(--surface);
     border: 1px solid var(--border);
   }
@@ -440,10 +441,10 @@
     width: 96px;
     height: 128px;
     padding: 8px 8px 8px 18px;
-    border-radius: 12px;
-    background: #0b0b0d;
+    border-radius: var(--r2);
+    background: var(--device-body);
     border: 1px solid var(--border-control);
-    box-shadow: 0 14px 30px rgba(0, 0, 0, 0.5);
+    box-shadow: var(--shadow-2);
   }
   .art.off {
     padding: 8px;
@@ -453,7 +454,7 @@
     width: 100%;
     height: 100%;
     border-radius: 3px;
-    background: #d8d5cb;
+    background: var(--device-screen);
     padding: 6px;
     display: flex;
     align-items: center;
@@ -475,9 +476,10 @@
     gap: 10px;
   }
   .device-info h2 {
+    font-family: var(--font-serif);
     font-size: 28px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
+    font-weight: 600;
+    letter-spacing: -0.01em;
   }
   .soft {
     max-width: 60ch;
@@ -528,7 +530,7 @@
   }
   .btn.big {
     height: 52px;
-    border-radius: 12px;
+    border-radius: var(--r2);
     font-size: 15px;
     font-weight: 700;
     padding: 0 20px;
@@ -548,7 +550,7 @@
     flex-direction: column;
     gap: 8px;
     padding: 14px;
-    border-radius: 12px;
+    border-radius: var(--r2);
     background: var(--surface-chip);
   }
   .sync-head {
@@ -565,7 +567,7 @@
   .bar div {
     height: 100%;
     background: var(--accent);
-    transition: width 0.2s ease;
+    transition: width var(--dur) var(--ease);
   }
   .bar.indeterminate div {
     width: 35% !important;
@@ -585,7 +587,7 @@
     justify-content: center;
     gap: 10px;
     height: 52px;
-    border-radius: 12px;
+    border-radius: var(--r2);
     background: var(--teal-bg);
     border: 1px solid var(--teal-border);
     color: var(--teal);
@@ -643,10 +645,10 @@
     width: 100%;
     color: var(--text);
     text-align: left;
-    transition: box-shadow 0.15s ease;
+    transition: box-shadow var(--dur) var(--ease);
   }
   .btn-line:hover {
-    box-shadow: inset 0 0 0 999px rgba(255, 255, 255, 0.05);
+    box-shadow: inset 0 0 0 999px var(--hover-wash);
   }
   .thumb {
     display: block;
@@ -680,7 +682,7 @@
     font-size: 11px;
     color: var(--text-soft);
     padding: 3px 8px;
-    border-radius: 6px;
+    border-radius: var(--r1);
     background: var(--surface-chip);
     white-space: nowrap;
   }
@@ -766,7 +768,7 @@
     flex-direction: column;
     gap: 6px;
     padding: 16px;
-    border-radius: 12px;
+    border-radius: var(--r2);
     background: var(--surface-card);
     border: 1px solid var(--border-soft);
   }

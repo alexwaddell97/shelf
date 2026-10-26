@@ -14,7 +14,7 @@
     ['Your e-reader', 'Shelf picks the right format and sync for the device you read on.'],
     ['Where new books come from', 'Shelf watches these folders and imports any ebook that lands in them.'],
     ['Bring your books', 'Start with the books you already have.'],
-    ["You're all set", 'Here is what Shelf will do. Everything is under Sources and Devices if you want to change it.']
+    ["You're all set", 'Here is what Shelf will do. Everything is under Settings and Devices if you want to change it.']
   ] as const;
   const LAST = STEPS.length - 1;
 
@@ -280,7 +280,7 @@
     flex-direction: column;
     gap: 2px;
     padding: 14px;
-    border-radius: 12px;
+    border-radius: var(--r2);
     background: var(--surface-raised);
     border: 1px solid var(--border);
   }
@@ -302,7 +302,7 @@
     align-items: center;
     gap: 10px;
     padding: 12px 14px;
-    border-radius: 12px;
+    border-radius: var(--r2);
     background: var(--teal-bg);
     border: 1px solid var(--teal-border);
     color: var(--teal);
@@ -323,7 +323,7 @@
     display: flex;
     gap: 10px;
     padding: 12px 14px;
-    border-radius: 12px;
+    border-radius: var(--r2);
     background: var(--surface-raised);
     border: 1px solid var(--border);
   }
@@ -345,7 +345,7 @@
     align-items: center;
     gap: 14px;
     padding: 12px 14px;
-    border-radius: 12px;
+    border-radius: var(--r2);
     background: var(--surface-raised);
     border: 1px solid var(--border);
   }
@@ -392,7 +392,7 @@
     width: 100%;
     min-height: 64px;
     padding: 12px 14px;
-    border-radius: 12px;
+    border-radius: var(--r2);
     border: 1.5px solid var(--border-control);
     background: var(--surface-raised);
     color: var(--text);
@@ -435,7 +435,7 @@
     align-items: center;
     gap: 12px;
     padding: 12px 14px;
-    border-radius: 12px;
+    border-radius: var(--r2);
     background: var(--surface-raised);
     border: 1px solid var(--border);
   }

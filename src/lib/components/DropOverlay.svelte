@@ -22,7 +22,7 @@
     align-items: center;
     justify-content: center;
     padding: 16px;
-    background: rgba(12, 13, 15, 0.82);
+    background: var(--badge-bg);
     backdrop-filter: blur(4px);
     pointer-events: none;
   }
@@ -35,7 +35,7 @@
     justify-content: center;
     gap: 8px;
     border: 2px dashed var(--accent);
-    border-radius: 20px;
+    border-radius: var(--r4);
     color: var(--accent);
     text-align: center;
   }

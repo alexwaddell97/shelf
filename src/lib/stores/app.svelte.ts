@@ -1,6 +1,6 @@
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import type { UnlistenFn } from '@tauri-apps/api/event';
-import { onCalibreProgress, onDevicesChanged, onImportProgress, onLibraryChanged, onOpenBook, onSyncProgress, takePendingOpen } from '$lib/api';
+import { onCalibreProgress, onDevicesChanged, onDrmDownload, onImportProgress, onLibraryChanged, onOpenBook, onSyncProgress, takePendingOpen } from '$lib/api';
 import { calibre } from './calibre.svelte';
 import { devices } from './devices.svelte';
 import { goodreads } from './goodreads.svelte';
@@ -64,6 +64,14 @@ export function startApp(): () => void {
     })
   );
   void subscribe('import-progress', () => onImportProgress((p) => imports.onProgress(p)));
+  void subscribe('drm-download', () =>
+    onDrmDownload((file) =>
+      toasts.error(
+        `“${file}” is a licence file, not the book`,
+        'It’s for Adobe Digital Editions, which swaps it for the DRM-protected book. Books bought on the Kobo Store appear on your Kobo over Wi-Fi by themselves.'
+      )
+    )
+  );
   void subscribe('open-book', () => onOpenBook((id) => void showBook(id)));
   void subscribe('calibre-progress', () => onCalibreProgress((p) => calibre.onProgress(p)));
   void subscribe('sync-progress', () => onSyncProgress((p) => devices.onProgress(p)));

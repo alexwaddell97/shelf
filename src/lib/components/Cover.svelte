@@ -29,6 +29,24 @@
   });
 
   let failedSrc = $state<string | null>(null);
+  let loadedSrc = $state<string | null>(null);
+
+  /** Width ÷ height of the loaded image; covers are 2:3 (≈ 0.667). */
+  let ratio = $state<number | null>(null);
+
+  function loaded(img: HTMLImageElement) {
+    loadedSrc = src;
+    ratio = img.naturalHeight ? img.naturalWidth / img.naturalHeight : null;
+  }
+
+  /** Cached images can finish before the load handler is attached. */
+  function watch(img: HTMLImageElement) {
+    if (img.complete && img.naturalWidth > 0) loaded(img);
+  }
+
+  // Every cover sits in the same 2:3 frame. Close-enough images fill it; clearly
+  // different shapes are shown whole, centred over a blurred copy, rather than cropped.
+  const letterbox = $derived(ratio !== null && Math.abs(ratio - 2 / 3) > 0.06);
   const showImage = $derived(!!src && failedSrc !== src);
 
   const style = $derived(coverStyle(title, author));
@@ -45,7 +63,20 @@
   style:--mark={style.mark}
 >
   {#if showImage}
-    <img {src} alt="" loading="lazy" referrerpolicy="no-referrer" onerror={() => (failedSrc = src)} />
+    {#if letterbox}
+      <img class="backdrop" {src} alt="" aria-hidden="true" referrerpolicy="no-referrer" />
+    {/if}
+    <img
+      {src}
+      alt=""
+      loading="lazy"
+      referrerpolicy="no-referrer"
+      class:loaded={loadedSrc === src}
+      class:contain={letterbox}
+      use:watch
+      onload={(e) => loaded(e.currentTarget as HTMLImageElement)}
+      onerror={() => (failedSrc = src)}
+    />
     <span class="spine" aria-hidden="true"></span>
   {:else}
     <span
@@ -73,9 +104,7 @@
     border-radius: var(--radius-s);
     background: var(--bg);
     color: var(--fg);
-    box-shadow:
-      inset 0 0 0 1px rgba(255, 255, 255, 0.07),
-      0 10px 24px rgba(0, 0, 0, 0.45);
+    box-shadow: var(--shadow-cover);
     font-family: var(--font-sans);
   }
   .cover.corner .author {
@@ -92,6 +121,19 @@
     height: 100%;
     object-fit: cover;
     display: block;
+    opacity: 0;
+    transition: opacity 260ms var(--ease);
+  }
+  img.loaded {
+    opacity: 1;
+  }
+  img.contain {
+    object-fit: contain;
+  }
+  img.backdrop {
+    opacity: 0.9;
+    filter: blur(14px) saturate(1.15) brightness(0.92);
+    transform: scale(1.18);
   }
   .mark {
     position: absolute;
@@ -103,7 +145,7 @@
     bottom: 0;
     left: 0;
     width: 5%;
-    background: rgba(0, 0, 0, 0.18);
+    background: var(--cover-spine);
   }
   .author {
     position: absolute;

@@ -63,10 +63,11 @@
     flex-direction: column;
     gap: 10px;
     padding: 16px;
-    border-radius: var(--radius-xl);
-    background: var(--surface-raised);
-    border: 1px solid var(--teal-border);
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+    border-radius: 22px;
+    background: var(--glass-thick);
+    backdrop-filter: var(--glass-filter);
+    border: 0;
+    box-shadow: var(--glass-shadow);
   }
   .head {
     display: flex;
@@ -111,7 +112,7 @@
   .bar div {
     height: 100%;
     background: var(--teal);
-    transition: width 0.2s ease;
+    transition: width var(--dur) var(--ease);
   }
   .bar.indeterminate div {
     width: 35% !important;

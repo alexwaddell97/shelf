@@ -1,7 +1,9 @@
 <script lang="ts">
-  import { downloadFree, openUrl, sourceUrl, type CatalogBook, type Source } from '$lib/api';
+  import { downloadFree, downloadsDir, openUrl, sourceUrl, type CatalogBook, type Source } from '$lib/api';
   import Cover from '$lib/components/Cover.svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import { arrivals } from '$lib/stores/arrivals.svelte';
+  import { imports } from '$lib/stores/imports.svelte';
   import { library } from '$lib/stores/library.svelte';
   import { nav, type Back } from '$lib/stores/nav.svelte';
   import { settings } from '$lib/stores/settings.svelte';
@@ -40,7 +42,22 @@
       await openUrl(url);
       return true;
     });
-    if (ok) toasts.info(`Opened ${src.name} in your browser`, url);
+    if (ok) {
+      // Wait for the download, so this page can turn into the book when it arrives.
+      arrivals.expect($state.snapshot(book), src.name);
+      toasts.info(`Opened ${src.name} in your browser`, url);
+    }
+  }
+
+  const waiting = $derived(arrivals.waitingFor(book));
+  // Without a watched folder, Shelf won't notice the download by itself.
+  const watching = $derived((settings.value?.watchFolders.length ?? 0) > 0);
+
+  async function watchDownloads() {
+    const dir = await attempt('Could not find your Downloads folder', downloadsDir);
+    if (!dir || !settings.value) return;
+    if (await settings.save({ watchFolders: [...settings.value.watchFolders, dir] }))
+      toasts.success('Shelf is watching your Downloads folder', dir);
   }
 
   async function toggleWish() {
@@ -123,6 +140,33 @@
       <div class="get">
         <h2>Get this book</h2>
 
+        {#if waiting}
+          <div class="waiting" role="status">
+            <span class="spinner" aria-hidden="true"></span>
+            <div class="waiting-text">
+              <strong>Waiting for your download from {waiting.source}…</strong>
+              <span>
+                {#if watching}
+                  When the file lands in your Downloads folder, Shelf adds it and shows it here. Bought it from the Kobo Store?
+                  It appears on your Kobo over Wi-Fi by itself.
+                {:else}
+                  Shelf isn't watching a folder, so it won't notice the download. Watch Downloads, or add the file yourself.
+                {/if}
+              </span>
+              <div class="waiting-actions">
+                {#if !watching}<button class="btn sm primary" onclick={watchDownloads}>Watch Downloads</button>{/if}
+                <button class="btn sm" onclick={() => imports.pickAndImport()}>Add the file myself…</button>
+                <button class="btn sm ghost" onclick={() => arrivals.stopWaiting(book)}>Stop waiting</button>
+              </div>
+            </div>
+          </div>
+        {:else if !watching && !book.isFree}
+          <p class="note">
+            Shelf isn't watching your Downloads folder, so after downloading you'll need to add the file yourself.
+            <button class="link" onclick={watchDownloads}>Watch Downloads</button>
+          </p>
+        {/if}
+
         {#if book.isFree}
           <div class="group">
             <h3 class="eyebrow small">Free</h3>
@@ -145,13 +189,13 @@
         {#if !hasSources}
           <p class="muted">
             No shops are switched on.
-            <button class="link-btn" onclick={() => nav.go('sources')}>Turn some on in Sources</button>.
+            <button class="link-btn" onclick={() => nav.go('sources')}>Turn some on in Settings</button>.
           </p>
         {/if}
         {#if custom.length === 0}
           <p class="small-note">
             Want another shop or library listed here?
-            <button class="link-btn" onclick={() => nav.go('sources')}>Add it in Sources</button>
+            <button class="link-btn" onclick={() => nav.go('sources')}>Add it in Settings</button>
             and it shows on every book.
           </p>
         {/if}
@@ -191,10 +235,12 @@
   }
   .title {
     margin-top: 6px;
+    font-family: var(--font-serif);
+    font-variant-numeric: lining-nums;
     font-size: 42px;
     line-height: 1.05;
-    font-weight: 700;
-    letter-spacing: -0.03em;
+    font-weight: 600;
+    letter-spacing: -0.018em;
     overflow-wrap: anywhere;
   }
   .author {
@@ -224,6 +270,65 @@
     padding-top: 20px;
     border-top: 1px solid var(--border-soft);
   }
+  .waiting {
+    display: flex;
+    gap: 14px;
+    padding: 16px;
+    border-radius: var(--radius-l);
+    background: var(--accent-bg);
+    border: 1px solid var(--accent-border);
+  }
+  .waiting-text {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+  .waiting-text span {
+    font-size: 13px;
+    color: var(--text-soft);
+  }
+  .waiting-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .spinner {
+    flex: none;
+    width: 18px;
+    height: 18px;
+    margin-top: 2px;
+    border-radius: 50%;
+    border: 2px solid var(--accent-border);
+    border-top-color: var(--accent);
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .spinner {
+      animation: none;
+    }
+  }
+  .note {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .link {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--accent);
+    font: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+    cursor: pointer;
+  }
   .get h2 {
     font-size: 20px;
     font-weight: 700;
@@ -243,7 +348,7 @@
     align-items: center;
     gap: 14px;
     padding: 12px 14px;
-    border-radius: 12px;
+    border-radius: var(--r2);
     background: var(--surface-card);
     border: 1px solid var(--border-soft);
   }

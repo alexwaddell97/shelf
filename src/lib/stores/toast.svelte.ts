@@ -8,6 +8,13 @@ export interface Toast {
   text: string;
   /** Smaller monospace line under the message (a URL, a path, an error detail). */
   detail?: string;
+  /** A button on the toast, e.g. "Open". Clicking it also dismisses the toast. */
+  action?: ToastAction;
+}
+
+export interface ToastAction {
+  label: string;
+  run: () => void;
 }
 
 class ToastStore {
@@ -15,15 +22,17 @@ class ToastStore {
   #next = 1;
   #timers = new Map<number, ReturnType<typeof setTimeout>>();
 
-  push(kind: ToastKind, text: string, detail?: string) {
+  push(kind: ToastKind, text: string, detail?: string, action?: ToastAction) {
     const id = this.#next++;
     // Keep at most 3 on screen; the oldest make room.
     const kept = this.items.slice(-2);
     for (const t of this.items) if (!kept.includes(t)) this.dismiss(t.id);
-    this.items = [...kept, { id, kind, text, detail }];
+    this.items = [...kept, { id, kind, text, detail, action }];
+    // Toasts you can act on stay a little longer.
+    const ms = kind === 'error' ? 8000 : action ? 9000 : 4000;
     this.#timers.set(
       id,
-      setTimeout(() => this.dismiss(id), kind === 'error' ? 8000 : 4000)
+      setTimeout(() => this.dismiss(id), ms)
     );
     return id;
   }
@@ -31,11 +40,11 @@ class ToastStore {
   info(text: string, detail?: string) {
     return this.push('info', text, detail);
   }
-  success(text: string, detail?: string) {
-    return this.push('success', text, detail);
+  success(text: string, detail?: string, action?: ToastAction) {
+    return this.push('success', text, detail, action);
   }
-  error(text: string, detail?: string) {
-    return this.push('error', text, detail);
+  error(text: string, detail?: string, action?: ToastAction) {
+    return this.push('error', text, detail, action);
   }
 
   dismiss(id: number) {

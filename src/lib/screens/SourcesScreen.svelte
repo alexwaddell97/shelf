@@ -6,7 +6,14 @@
   import { basename } from '$lib/format';
   import { calibre } from '$lib/stores/calibre.svelte';
   import { settings } from '$lib/stores/settings.svelte';
+  import { theme, type ThemePref } from '$lib/stores/theme.svelte';
   import { attempt, toasts } from '$lib/stores/toast.svelte';
+
+  const THEMES: { id: ThemePref; label: string; icon: 'monitor' | 'sun' | 'moon' }[] = [
+    { id: 'light', label: 'Light', icon: 'sun' },
+    { id: 'dark', label: 'Dark', icon: 'moon' },
+    { id: 'system', label: 'System', icon: 'monitor' }
+  ];
 
   const KIND_LABEL: Record<Source['kind'], string> = { store: 'Store', free: 'Free', custom: 'Custom' };
 
@@ -85,12 +92,42 @@
 
 <section aria-labelledby="src-h">
   <div>
-    <h1 id="src-h" class="page-title">Sources</h1>
-    <p class="page-sub">
+    <h1 id="src-h" class="page-title">Settings</h1>
+    <p class="page-sub">How Shelf looks, where it finds books, and the sites it can search for you.</p>
+    <button class="link-btn rerun" onclick={() => (settings.rerunSetup = true)}>Run first-time setup again</button>
+  </div>
+
+  <div class="panel appearance">
+    <div class="appearance-text">
+      <h2>Appearance</h2>
+      <p class="small">
+        {theme.pref === 'system'
+          ? `Following your system: Shelf is using the ${theme.resolved} theme right now.`
+          : `Shelf always uses the ${theme.pref} theme.`}
+      </p>
+    </div>
+    <div class="segmented" role="radiogroup" aria-label="Theme">
+      {#each THEMES as t (t.id)}
+        <button
+          class="seg"
+          class:on={theme.pref === t.id}
+          role="radio"
+          aria-checked={theme.pref === t.id}
+          onclick={() => theme.set(t.id)}
+        >
+          <Icon name={t.icon} size={16} />
+          {t.label}
+        </button>
+      {/each}
+    </div>
+  </div>
+
+  <div class="group-head">
+    <h2 class="serif">Search sources</h2>
+    <p class="small">
       Search links shown when you look for a book. Each one opens the site in your browser with your search filled in.
       Shelf never downloads from them itself.
     </p>
-    <button class="link-btn rerun" onclick={() => (settings.rerunSetup = true)}>Run first-time setup again</button>
   </div>
 
   <div class="list">
@@ -237,6 +274,58 @@
     flex-direction: column;
     gap: 24px;
     max-width: 920px;
+  }
+  .appearance {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .appearance h2,
+  .group-head h2 {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+  }
+  .group-head {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-width: 70ch;
+    margin-bottom: -8px;
+  }
+  .segmented {
+    display: inline-flex;
+    padding: 3px;
+    gap: 2px;
+    border-radius: var(--r2);
+    background: var(--surface-sunken);
+    border: 1px solid var(--border-soft);
+  }
+  .seg {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 36px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: calc(var(--r2) - 3px);
+    background: transparent;
+    color: var(--muted);
+    font-weight: 500;
+    transition:
+      background-color var(--dur) var(--ease),
+      color var(--dur) var(--ease),
+      box-shadow var(--dur) var(--ease);
+  }
+  .seg:hover {
+    color: var(--text);
+  }
+  .seg.on {
+    background: var(--surface-raised);
+    color: var(--text);
+    box-shadow: var(--shadow-1);
   }
   .rerun {
     margin-top: 8px;

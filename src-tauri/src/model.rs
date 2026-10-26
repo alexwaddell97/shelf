@@ -79,6 +79,8 @@ pub struct Device {
     pub connected: bool,
     pub mount_path: Option<String>,
     pub last_seen: Option<String>,
+    /// When Shelf last finished a sync with this device.
+    pub last_synced: Option<String>,
     pub support_level: String,
     pub send_format: String,
     pub free_bytes: Option<u64>,

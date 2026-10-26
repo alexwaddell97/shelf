@@ -1,26 +1,34 @@
 <script lang="ts">
   import '@fontsource-variable/geist';
   import '@fontsource-variable/geist-mono';
+  import '@fontsource-variable/literata';
   import '../app.css';
   import type { Snippet } from 'svelte';
   import { onMount } from 'svelte';
+  import { page } from '$app/state';
   import CalibreConfirm from '$lib/components/CalibreConfirm.svelte';
   import BookMenu from '$lib/components/BookMenu.svelte';
   import CalibrePanel from '$lib/components/CalibrePanel.svelte';
   import DropOverlay from '$lib/components/DropOverlay.svelte';
   import ImportPanel from '$lib/components/ImportPanel.svelte';
   import SetupWizard from '$lib/components/SetupWizard.svelte';
+  import Spotlight from '$lib/components/Spotlight.svelte';
   import SyncPanel from '$lib/components/SyncPanel.svelte';
   import Sidebar from '$lib/components/Sidebar.svelte';
   import Toasts from '$lib/components/Toasts.svelte';
   import TopBar from '$lib/components/TopBar.svelte';
   import { startApp } from '$lib/stores/app.svelte';
   import { settings } from '$lib/stores/settings.svelte';
+  import { theme } from '$lib/stores/theme.svelte';
 
   let { children }: { children: Snippet } = $props();
 
+  // Reader windows show just the book: no sidebar, top bar or library background work.
+  const reading = page.route.id?.startsWith('/reader') ?? false;
+
   onMount(() => {
-    const stop = startApp();
+    const stop = reading ? () => {} : startApp();
+    const stopTheme = reading ? () => {} : theme.init();
     // This is a desktop app, so the browser's own right-click menu (Back, Reload, Inspect…)
     // makes no sense. Keep it only where it's useful: in text fields and over selected text.
     const quiet = (e: MouseEvent) => {
@@ -33,10 +41,14 @@
     return () => {
       document.removeEventListener('contextmenu', quiet);
       stop();
+      stopTheme();
     };
   });
 </script>
 
+{#if reading}
+  {@render children()}
+{:else}
 <div class="app">
   <Sidebar />
   <main>
@@ -57,13 +69,16 @@
 </div>
 <CalibreConfirm />
 <BookMenu />
+<Spotlight />
 <DropOverlay />
 <Toasts />
+{/if}
 
 <style>
   .app {
     display: grid;
-    grid-template-columns: var(--nav-w) minmax(0, 1fr);
+    /* The sidebar floats inside its column, inset by the float gap. */
+    grid-template-columns: calc(var(--nav-w) + var(--float-gap)) minmax(0, 1fr);
     min-height: 100vh;
   }
   main {

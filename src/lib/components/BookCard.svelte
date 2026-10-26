@@ -6,6 +6,7 @@
   import { library } from '$lib/stores/library.svelte';
   import Cover from './Cover.svelte';
   import Icon from './Icon.svelte';
+  import { tip } from '$lib/tooltip';
 
   interface Props {
     book: Book;
@@ -16,17 +17,12 @@
 
   let { book, onopen, detailed = true }: Props = $props();
 
+  const sync = $derived(devices.bookSync(book));
   const onDevice = $derived(book.onDevices.length > 0);
-  const queued = $derived(!onDevice && book.queuedFor.length > 0);
-  const deviceTitle = $derived(book.onDevices.map((id) => devices.name(id)).join(', '));
   const isNew = $derived(detailed && library.fresh.includes(book.id));
   // Where the book is, then how far through it you are: "On Kobo · 42% read".
   const where = $derived(
-    onDevice
-      ? `On ${(devices.name(book.onDevices[0]) ?? 'device').split(' ')[0]}`
-      : queued
-        ? 'Waiting to send'
-        : 'On PC only'
+    sync.state === 'synced' ? `On ${(devices.name(book.onDevices[0]) ?? 'device').split(' ')[0]}` : sync.label
   );
   const meta = $derived(book.status === 'unread' && !onDevice ? where : `${where} · ${statusLabel(book)}`);
   const series = $derived(seriesLabel(book));
@@ -52,13 +48,13 @@
       {#if isNew}
         <span class="badge new" role="img" aria-label="New" title="New">N</span>
       {/if}
-      {#if onDevice}
-        <span class="badge on-device" role="img" aria-label="On {deviceTitle}" title="On {deviceTitle}">
-          <Icon name="device" size={13} />
+      {#if sync.state === 'synced'}
+        <span class="badge on-device" role="img" aria-label={sync.label} use:tip={sync.tip}>
+          <Icon name="check" size={13} />
         </span>
-      {:else if queued && detailed}
-        <span class="badge queued" role="img" aria-label="Waiting to send" title="Waiting to send">
-          <Icon name="device-send" size={13} />
+      {:else if sync.state === 'waiting' && detailed}
+        <span class="badge queued" role="img" aria-label={sync.label} use:tip={sync.tip}>
+          <Icon name="sync" size={13} />
         </span>
       {/if}
     </div>
@@ -89,7 +85,7 @@
   .lift {
     position: relative;
     width: 100%;
-    transition: transform 0.18s ease;
+    transition: transform var(--dur) var(--ease);
   }
   .card:hover .lift,
   .card:focus-visible .lift {
@@ -111,15 +107,27 @@
     height: 22px;
     border-radius: 50%;
     background: var(--chip-overlay);
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12);
+    box-shadow: 0 0 0 1px var(--badge-ring);
     font-size: 11px;
     font-weight: 700;
   }
+  /* Filled sync badges: a teal check when on the e-reader and up to date, amber arrows
+     when waiting for the next sync. */
+  .badge.on-device,
+  .badge.queued {
+    width: 20px;
+    height: 20px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
+  }
+  /* Up to date is the normal case, so it's a quiet white dot. */
   .badge.on-device {
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(8px);
     color: var(--teal);
   }
   .badge.queued {
-    color: var(--accent);
+    background: var(--accent);
+    color: var(--on-accent);
   }
   .badge.new {
     background: var(--accent);
@@ -134,7 +142,7 @@
     height: 4px;
     overflow: hidden;
     border-radius: 0 0 var(--radius-s) var(--radius-s);
-    background: rgba(0, 0, 0, 0.5);
+    background: var(--cover-track);
   }
   .progress span {
     display: block;

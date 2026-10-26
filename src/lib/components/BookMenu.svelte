@@ -35,7 +35,8 @@
       first = false;
     }
     items.push(
-      { label: 'Read on PC', run: () => bookActions.read(book), divider: true },
+      { label: 'Read', run: () => bookActions.read(book), divider: true },
+      { label: 'Open in another app', run: () => bookActions.openElsewhere(book) },
       { label: 'Show file in folder', run: () => bookActions.reveal(book) },
       { label: 'Remove from library…', run: () => bookActions.askDelete(book), destructive: true, divider: true }
     );
@@ -157,10 +158,11 @@
     padding: 6px;
     display: flex;
     flex-direction: column;
-    background: var(--surface-2, #1f2026);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    box-shadow: 0 18px 44px rgba(0, 0, 0, 0.55);
+    background: var(--glass-thick);
+    backdrop-filter: var(--glass-filter);
+    border: 0;
+    border-radius: 16px;
+    box-shadow: var(--glass-shadow);
   }
   .heading {
     padding: 6px 10px 8px;
@@ -182,7 +184,7 @@
     min-height: 34px;
     padding: 0 10px;
     border: 0;
-    border-radius: 8px;
+    border-radius: 10px;
     background: transparent;
     color: var(--text);
     font: inherit;
@@ -192,11 +194,11 @@
   }
   button:hover,
   button:focus-visible {
-    background: rgba(255, 255, 255, 0.07);
+    background: var(--menu-hover);
     outline: none;
   }
   .destructive {
-    color: var(--danger, #e8a598);
+    color: var(--danger);
   }
   .dialog-body {
     padding: 24px;

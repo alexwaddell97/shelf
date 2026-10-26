@@ -98,6 +98,8 @@ export interface Device {
   /** Where the device is mounted while connected, e.g. "E:\\". */
   mountPath: string | null;
   lastSeen: string | null;
+  /** When Shelf last finished a sync with this device. */
+  lastSynced: string | null;
   supportLevel: SupportLevel;
   /** Format books are sent in, e.g. "kepub" or "epub". */
   sendFormat: string;
@@ -295,7 +297,30 @@ export const takePendingOpen = () => invoke<number | null>('take_pending_open');
 /** Opens Windows' Default apps settings. Returns false on systems without such a page. */
 export const openDefaultAppsSettings = () => invoke<boolean>('open_default_apps_settings');
 
+// --- Reader ---
+/** Formats Shelf's own reader opens; others go to another app (openBook). */
+export const READABLE_FORMATS = ['epub', 'kepub', 'mobi', 'azw3'];
+export interface ReadingPosition {
+  /** EPUB CFI from the reader. */
+  position: string;
+  /** 0–1 through the book. */
+  fraction: number;
+}
+/** Opens the book in its own reader window, or brings that window forward. */
+export const openReader = (bookId: number) => invoke<void>('open_reader', { bookId });
+/** This computer's Downloads folder, if it has one. */
+export const downloadsDir = () => invoke<string | null>('downloads_dir');
+/** The book's file as raw bytes, for the reader. */
+export const readBookFile = (bookId: number) => invoke<ArrayBuffer>('read_book_file', { bookId });
+export const getReadingPosition = (bookId: number) => invoke<ReadingPosition | null>('get_reading_position', { bookId });
+/** Also updates the book's progress and status in the library. */
+export const saveReadingPosition = (bookId: number, position: string, fraction: number) =>
+  invoke<void>('save_reading_position', { bookId, position, fraction });
+
 // --- Events ---
+/** An Adobe DRM licence (.acsm) landed in a watched folder; payload is its file name. */
+export const onDrmDownload = (cb: (file: string) => void): Promise<UnlistenFn> =>
+  listen<string>('drm-download', (e) => cb(e.payload));
 /** A file was opened with Shelf: show this book's page. */
 export const onOpenBook = (cb: (bookId: number) => void): Promise<UnlistenFn> =>
   listen<number>('open-book', (e) => cb(e.payload));

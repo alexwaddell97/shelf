@@ -4,12 +4,15 @@
     deleteBook,
     labelBooks,
     openBook,
+    openReader,
+    READABLE_FORMATS,
     queueForDevice,
     removeFromDevice,
     revealBook,
     unqueue,
     type Device
   } from '$lib/api';
+  import ClampText from '$lib/components/ClampText.svelte';
   import Cover from '$lib/components/Cover.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import Modal from '$lib/components/Modal.svelte';
@@ -134,7 +137,12 @@
       () => removeFromDevice(d.id, id),
       `Removed from your ${d.name}. It is still in your library.`
     );
-  const read = () => run('Could not open the book', () => openBook(id));
+  // Shelf's own reader for the formats it can show; another app for the rest.
+  const read = () =>
+    book && READABLE_FORMATS.includes(book.format)
+      ? run('Could not open the reader', () => openReader(id))
+      : run('Could not open the book', () => openBook(id));
+  const openElsewhere = () => run('Could not open the book', () => openBook(id));
   const reveal = () => run('Could not show the file', () => revealBook(id));
 
   async function confirmedDelete() {
@@ -194,7 +202,9 @@
           {/if}
         </div>
         {#if book.description}
-          <p class="desc">{book.description}</p>
+          <div class="desc">
+            {#key book.id}<ClampText text={book.description} lines={4} />{/key}
+          </div>
         {:else}
           <p class="desc none">No description yet. Edit details to add one.</p>
         {/if}
@@ -283,9 +293,10 @@
               Send to {d.name}
             </button>
           {/each}
-          <button class="btn" disabled={busy} onclick={read}>Read on PC</button>
+          <button class="btn" disabled={busy} onclick={read}>Read</button>
           <button class="btn" onclick={() => (nav.editing = true)}>Edit details</button>
           <button class="btn" disabled={busy} onclick={reveal}>Show file</button>
+          <button class="btn" disabled={busy} onclick={openElsewhere}>Open in another app</button>
           {#each queuedList as deviceId (deviceId)}
             <button class="btn" disabled={busy} onclick={() => cancelSend(deviceId)}>
               {onList.includes(deviceId) ? 'Cancel update on' : 'Cancel send to'} {deviceFor(deviceId).name}
@@ -437,7 +448,7 @@
     border-radius: var(--radius-l);
     background: var(--surface-raised);
     border: 1px solid var(--border-control);
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+    box-shadow: var(--shadow-2);
   }
   .pop-item {
     display: flex;
@@ -476,10 +487,12 @@
   }
   .title {
     margin-top: 6px;
+    font-family: var(--font-serif);
+    font-variant-numeric: lining-nums;
     font-size: 42px;
     line-height: 1.05;
-    font-weight: 700;
-    letter-spacing: -0.03em;
+    font-weight: 600;
+    letter-spacing: -0.018em;
     overflow-wrap: anywhere;
   }
   .author {
@@ -500,7 +513,7 @@
   .status {
     max-width: 560px;
     padding: 16px;
-    border-radius: 12px;
+    border-radius: var(--r2);
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -627,7 +640,7 @@
   .btn.destructive {
     border-color: transparent;
     background: var(--danger);
-    color: #2a0f0a;
+    color: var(--on-danger);
     font-weight: 600;
   }
 </style>

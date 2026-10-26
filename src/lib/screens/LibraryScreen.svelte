@@ -1,9 +1,12 @@
 <script lang="ts">
   import BookCard from '$lib/components/BookCard.svelte';
   import Icon from '$lib/components/Icon.svelte';
+  import ListView from '$lib/components/ListView.svelte';
+  import ShelfView from '$lib/components/ShelfView.svelte';
+  import type { Book } from '$lib/api';
   import { plural } from '$lib/format';
   import { imports } from '$lib/stores/imports.svelte';
-  import { library, SORT_OPTIONS, type LibraryFilter, type LibrarySort } from '$lib/stores/library.svelte';
+  import { library, SORT_OPTIONS, type LibraryFilter, type LibrarySort, type LibraryView } from '$lib/stores/library.svelte';
   import { browseKindOf, nav } from '$lib/stores/nav.svelte';
 
   const FILTERS: [LibraryFilter, string][] = [
@@ -31,6 +34,14 @@
   const visible = $derived(library.list(scope, sort));
   const siblings = $derived(visible.map((b) => b.id));
 
+  const VIEWS: [LibraryView, string, 'library' | 'grid' | 'list'][] = [
+    ['shelf', 'Shelf', 'library'],
+    ['grid', 'Grid', 'grid'],
+    ['list', 'List', 'list']
+  ];
+
+  const open = (book: Book) => nav.openBook(book.id, scope ? { kind: 'scope', scope } : { kind: 'library' }, siblings);
+
   function pickSort(value: LibrarySort) {
     if (scope) override = value;
     else library.setSort(value);
@@ -47,7 +58,16 @@
 
   {#if !library.loaded}
     <h1 id="lib-h" class="page-title">Library</h1>
-    <p class="page-sub">Loading your books…</p>
+    <p class="sr-only" role="status">Loading your books…</p>
+    <div class="book-grid" aria-hidden="true">
+      {#each Array.from({ length: 12 }, (_, i) => i) as i (i)}
+        <div class="sk-card">
+          <div class="skeleton sk-cover"></div>
+          <div class="skeleton sk-line"></div>
+          <div class="skeleton sk-line short"></div>
+        </div>
+      {/each}
+    </div>
   {:else if library.books.length === 0 && !scope}
     <h1 id="lib-h" class="page-title">Library</h1>
     <div class="welcome">
@@ -58,7 +78,7 @@
         <Icon name="plus" />
         Add books
       </button>
-      <p class="hint">Works with .epub, .kepub, .mobi, .azw3 and .pdf. Set up a watch folder under Sources to import new downloads automatically.</p>
+      <p class="hint">Works with .epub, .kepub, .mobi, .azw3 and .pdf. Set up a watch folder under Settings to import new downloads automatically.</p>
     </div>
   {:else}
     <div class="top">
@@ -68,6 +88,16 @@
           {plural(visible.length, 'book')}{scope ? '' : ` · ${library.onDeviceCount} on a device`}
         </p>
       </div>
+      <div class="tools">
+        <div class="views" role="group" aria-label="Layout">
+          {#each VIEWS as [id, label, icon] (id)}
+            {@const on = library.view === id}
+            <button class="view" class:on aria-pressed={on} title="{label} view" onclick={() => library.setView(id)}>
+              <Icon name={icon} size={16} />
+              <span>{label}</span>
+            </button>
+          {/each}
+        </div>
       <div class="sort">
         <label for="shelf-sort">Sort</label>
         <select id="shelf-sort" class="input" value={sort} onchange={(e) => pickSort(e.currentTarget.value as LibrarySort)}>
@@ -75,6 +105,7 @@
             <option {value}>{label}</option>
           {/each}
         </select>
+      </div>
       </div>
     </div>
 
@@ -91,19 +122,38 @@
     {#if visible.length === 0}
       <p class="empty">{scope && library.filter === 'all' ? 'No books here any more.' : 'No books match this filter.'}</p>
     {:else}
-      <div class="book-grid">
-        {#each visible as book (book.id)}
-          <BookCard
-            {book}
-            onopen={() => nav.openBook(book.id, scope ? { kind: 'scope', scope } : { kind: 'library' }, siblings)}
-          />
-        {/each}
-      </div>
+      {#if library.view === 'shelf'}
+        <ShelfView books={visible} onopen={open} />
+      {:else if library.view === 'list'}
+        <ListView books={visible} onopen={open} />
+      {:else}
+        <div class="book-grid">
+          {#each visible as book (book.id)}
+            <BookCard {book} onopen={() => open(book)} />
+          {/each}
+        </div>
+      {/if}
     {/if}
   {/if}
 </section>
 
 <style>
+  .sk-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .sk-cover {
+    aspect-ratio: 2 / 3;
+    border-radius: var(--r1);
+  }
+  .sk-line {
+    height: 12px;
+    width: 85%;
+  }
+  .sk-line.short {
+    width: 55%;
+  }
   section {
     display: flex;
     flex-direction: column;
@@ -115,6 +165,41 @@
     align-items: flex-end;
     justify-content: space-between;
     gap: 16px;
+  }
+  .tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px;
+  }
+  .views {
+    display: flex;
+    padding: 3px;
+    border-radius: var(--r2);
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+  .view {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    height: 34px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: var(--r2);
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .view:hover {
+    color: var(--text);
+  }
+  .view.on {
+    background: var(--surface-tile);
+    color: var(--text);
   }
   .sort {
     display: flex;
@@ -169,7 +254,7 @@
     padding: 56px 24px;
     text-align: center;
     border: 1px dashed var(--border);
-    border-radius: 16px;
+    border-radius: var(--r3);
   }
   .welcome-icon {
     display: flex;
@@ -177,14 +262,15 @@
     justify-content: center;
     width: 64px;
     height: 64px;
-    border-radius: 16px;
+    border-radius: var(--r3);
     background: var(--surface-tile);
     color: var(--accent);
   }
   .welcome h2 {
+    font-family: var(--font-serif);
     font-size: 22px;
-    font-weight: 700;
-    letter-spacing: -0.01em;
+    font-weight: 600;
+    letter-spacing: -0.005em;
   }
   .welcome p {
     max-width: 52ch;

@@ -12,6 +12,7 @@ mod kepub;
 mod library;
 mod model;
 mod open_with;
+mod reader;
 mod state;
 mod tools;
 mod watcher;
@@ -86,6 +87,11 @@ pub fn run() {
             commands::find_covers,
             commands::take_pending_open,
             commands::open_default_apps_settings,
+            commands::open_reader,
+            commands::get_reading_position,
+            commands::save_reading_position,
+            commands::read_book_file,
+            commands::downloads_dir,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

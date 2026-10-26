@@ -49,7 +49,7 @@
   .btn.destructive {
     border-color: transparent;
     background: var(--danger);
-    color: #2a0f0a;
+    color: var(--on-danger);
     font-weight: 600;
   }
 </style>

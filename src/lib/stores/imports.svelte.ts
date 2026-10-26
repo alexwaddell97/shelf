@@ -2,6 +2,7 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { importFiles, type ImportProgress, type ImportStep } from '$lib/api';
 import { basename, extension } from '$lib/format';
 import { library } from './library.svelte';
+import { arrivals } from './arrivals.svelte';
 import { attempt, toasts } from './toast.svelte';
 import { wishlist } from './wishlist.svelte';
 
@@ -56,6 +57,7 @@ class ImportsStore {
     }
     if (isTerminal(p.step)) {
       void library.refresh();
+      if (p.step === 'done' && p.bookId !== null) void arrivals.onImported(p.bookId);
       if (p.matchedWishlist) void wishlist.refresh();
     }
     this.#scheduleClear();

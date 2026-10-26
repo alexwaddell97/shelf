@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 64 64">
+  <!-- Shelf app icon: three hardbacks on an oak shelf, the last leaning on the tall one,
+       on a warm paper tile that matches the light theme. The teal book is rotated 16°
+       about its bottom-left corner, placed so its top-left corner meets the tall book's
+       right edge (x = 34). Used for 48 px and up; 16–32 px use app-icon-small.svg. -->
+  <rect x="0.5" y="0.5" width="63" height="63" rx="14" fill="#f7f1e6" stroke="#e2d6c2" stroke-width="1"/>
+  <rect x="8" y="48" width="48" height="4" fill="#bf8a52"/>
+  <rect x="8" y="51" width="48" height="1" fill="#8f6236"/>
+  <rect x="13" y="24" width="9" height="24" rx="0.8" fill="#f2b347"/>
+  <rect x="13" y="28" width="9" height="2.5" fill="#b8801a"/>
+  <rect x="23" y="15" width="11" height="33" rx="0.8" fill="#2f241c"/>
+  <rect x="23" y="19" width="11" height="1.4" fill="#d9c9ad"/>
+  <rect x="23" y="42.6" width="11" height="1.4" fill="#d9c9ad"/>
+  <rect x="41.17" y="22" width="8" height="26" rx="0.8" fill="#3fb3a3" transform="rotate(-16 41.17 48)"/>
+</svg>

@@ -32,7 +32,7 @@
     border: 0;
     border-radius: 999px;
     background: var(--track-strong);
-    transition: background 0.15s ease;
+    transition: background var(--dur) var(--ease);
   }
   .toggle.on {
     background: var(--accent);
@@ -46,8 +46,8 @@
     border-radius: 50%;
     background: var(--faint);
     transition:
-      left 0.15s ease,
-      background 0.15s ease;
+      left var(--dur) var(--ease),
+      background var(--dur) var(--ease);
   }
   .on .knob {
     left: 22px;

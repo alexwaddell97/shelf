@@ -12,12 +12,26 @@
   import { nav } from '$lib/stores/nav.svelte';
 
   const view = $derived(nav.view);
+  // A new key replays the settle-in animation; book pages share one key so Previous/Next in the editor does not.
+  const viewKey = $derived(
+    nav.searching
+      ? 'search'
+      : view.name === 'library'
+        ? `library:${view.scope?.kind ?? ''}:${view.scope?.key ?? ''}`
+        : view.name === 'browse'
+          ? `browse:${view.kind}`
+          : view.name === 'catalog'
+            ? `catalog:${view.book.key}:${view.book.title}`
+            : view.name
+  );
 </script>
 
 <svelte:head>
   <title>Shelf</title>
 </svelte:head>
 
+{#key viewKey}
+<div class="view-in">
 {#if nav.searching}
   <SearchScreen />
 {:else if view.name === 'library'}
@@ -44,3 +58,5 @@
 {:else if view.name === 'accounts'}
   <AccountsScreen />
 {/if}
+</div>
+{/key}

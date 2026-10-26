@@ -155,12 +155,12 @@
     border-radius: var(--radius-m);
     background: var(--surface-raised);
     border: 1px solid var(--border-control);
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+    box-shadow: var(--shadow-2);
   }
   .suggest button {
     padding: 7px 10px;
     border: 0;
-    border-radius: 6px;
+    border-radius: var(--r1);
     background: transparent;
     color: var(--text);
     text-align: left;

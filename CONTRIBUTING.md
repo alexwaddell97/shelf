@@ -49,10 +49,26 @@ Even if you can't write code, **device test reports are very valuable**: plug in
 
 ## Book sources policy
 
-The search links that ship with Shelf (`default_sources` in `src-tauri/src/state.rs`) are limited to **legitimate stores and libraries of free, legally shared books** (public domain or openly licensed). Pull requests adding presets for sites that distribute copyrighted books without permission won't be accepted. Users can still add any site they like to their own copy through *Sources*.
+The search links that ship with Shelf (`default_sources` in `src-tauri/src/state.rs`) are limited to **legitimate stores and libraries of free, legally shared books** (public domain or openly licensed). Pull requests adding presets for sites that distribute copyrighted books without permission won't be accepted. Users can still add any site they like to their own copy through *Settings*.
 
 The same applies to direct downloads: Shelf only downloads files itself from Project Gutenberg. New free libraries can be added if their licensing is clear and they offer a stable API.
 
 ## Code of conduct
 
 Be kind, assume good intent, and keep discussion about the work. Harassment of any kind isn't tolerated, and maintainers may remove comments or contributors that break this.
+
+## The app icon
+
+The icon's source drawings are in `src-tauri/icons/source/`: `app-icon.svg` for 48 px and up, and `app-icon-small.svg`, a simplified version for 16–32 px where detail turns to mush. To regenerate everything after changing them:
+
+```bash
+npx tauri icon src-tauri/icons/source/app-icon.svg
+npx tauri icon src-tauri/icons/source/app-icon-small.svg -o /tmp/small -p 16 -p 24 -p 30 -p 32 -p 44
+npx tauri icon src-tauri/icons/source/app-icon.svg -o /tmp/big -p 48 -p 64 -p 256
+python scripts/make_ico.py src-tauri/icons/icon.ico /tmp/small/16x16.png /tmp/small/24x24.png /tmp/small/32x32.png /tmp/big/48x48.png /tmp/big/64x64.png /tmp/big/256x256.png
+cp /tmp/small/32x32.png src-tauri/icons/32x32.png
+cp /tmp/small/30x30.png src-tauri/icons/Square30x30Logo.png
+cp /tmp/small/44x44.png src-tauri/icons/Square44x44Logo.png
+cp /tmp/small/32x32.png static/favicon.png
+rm -rf src-tauri/icons/android src-tauri/icons/ios
+```

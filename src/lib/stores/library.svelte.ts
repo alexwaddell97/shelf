@@ -24,6 +24,20 @@ export interface Scope {
 }
 
 const SORT_KEY = 'shelf.sort';
+const VIEW_KEY = 'shelf.view';
+
+/** How the library is laid out: covers on wooden shelves, a plain grid, or a list with a details panel. */
+export type LibraryView = 'shelf' | 'grid' | 'list';
+
+function loadView(): LibraryView {
+  try {
+    const v = localStorage.getItem(VIEW_KEY);
+    if (v === 'shelf' || v === 'grid' || v === 'list') return v;
+  } catch {
+    /* storage unavailable */
+  }
+  return 'shelf';
+}
 
 function loadSort(): LibrarySort {
   try {
@@ -73,10 +87,20 @@ class LibraryStore {
   loaded = $state(false);
   filter = $state<LibraryFilter>('all');
   sort = $state<LibrarySort>(loadSort());
+  view = $state<LibraryView>(loadView());
   /** Ids that showed up after the first load, so the grid can mark them "New". */
   fresh = $state<number[]>([]);
 
   #seq = 0;
+
+  setView(view: LibraryView) {
+    this.view = view;
+    try {
+      localStorage.setItem(VIEW_KEY, view);
+    } catch {
+      /* storage unavailable */
+    }
+  }
 
   setSort(sort: LibrarySort) {
     this.sort = sort;

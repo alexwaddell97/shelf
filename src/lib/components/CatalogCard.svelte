@@ -48,7 +48,7 @@
   .lift {
     position: relative;
     width: 100%;
-    transition: transform 0.18s ease;
+    transition: transform var(--dur) var(--ease);
   }
   .card:hover .lift,
   .card:focus-visible .lift {
@@ -65,7 +65,7 @@
     height: 22px;
     border-radius: 50%;
     background: var(--chip-overlay);
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12);
+    box-shadow: 0 0 0 1px var(--badge-ring);
   }
   .badge.free {
     color: var(--teal);

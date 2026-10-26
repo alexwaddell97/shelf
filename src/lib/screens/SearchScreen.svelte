@@ -102,7 +102,7 @@
     {#if sources.length === 0}
       <p class="muted">
         No sources are switched on.
-        <button class="link-btn" onclick={() => nav.go('sources')}>Turn some on in Sources</button>.
+        <button class="link-btn" onclick={() => nav.go('sources')}>Turn some on in Settings</button>.
       </p>
     {:else}
       <div class="sources">
@@ -157,7 +157,7 @@
     justify-content: space-between;
     gap: 12px;
     padding: 14px 16px;
-    border-radius: 12px;
+    border-radius: var(--r2);
     border: 1px solid var(--accent-border);
     background: var(--accent-bg);
     color: var(--accent-text);
@@ -191,7 +191,7 @@
     justify-content: center;
     width: 32px;
     height: 32px;
-    border-radius: 7px;
+    border-radius: var(--r1);
     background: var(--surface-tile);
     font-weight: 700;
   }

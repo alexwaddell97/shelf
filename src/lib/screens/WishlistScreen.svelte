@@ -2,8 +2,36 @@
   import Cover from '$lib/components/Cover.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import { wishToCatalog } from '$lib/format';
+  import type { Book } from '$lib/api';
+  import { sameWork } from '$lib/search';
+  import { library } from '$lib/stores/library.svelte';
   import { nav } from '$lib/stores/nav.svelte';
+  import { toasts } from '$lib/stores/toast.svelte';
   import { wishlist } from '$lib/stores/wishlist.svelte';
+
+  // Wishes are matched to the library when a book is imported. Books added before a match
+  // was possible (or under a slightly different title) are caught here instead.
+  const owned = $derived.by(() => {
+    const found = new Map<number, Book>();
+    for (const item of wishlist.items) {
+      const book = library.books.find((b) => sameWork(b, item));
+      if (book) found.set(item.id, book);
+    }
+    return found;
+  });
+
+  let clearing = $state(false);
+  async function clearOwned() {
+    if (clearing) return;
+    clearing = true;
+    const ids = [...owned.keys()];
+    try {
+      for (const id of ids) await wishlist.remove(id);
+      toasts.success(`Removed ${ids.length === 1 ? '1 book' : `${ids.length} books`} you already have`);
+    } finally {
+      clearing = false;
+    }
+  }
 
   const originLabel = (origin: string) =>
     origin === 'search' ? '' : `From ${origin.charAt(0).toUpperCase()}${origin.slice(1)}`;
@@ -22,12 +50,26 @@
   {:else if wishlist.items.length === 0}
     <p class="empty">Your wishlist is empty. Search for a book and add it from “Not in your library”.</p>
   {:else}
+    {#if owned.size}
+      <div class="owned-banner">
+        <Icon name="check" size={16} />
+        <span>
+          {owned.size === 1 ? '1 book on your wishlist is' : `${owned.size} books on your wishlist are`} already in your library.
+        </span>
+        <button class="btn sm" onclick={clearOwned} disabled={clearing}>Remove {owned.size === 1 ? 'it' : 'them'} from wishlist</button>
+      </div>
+    {/if}
     <div class="book-grid">
       {#each wishlist.items as item (item.id)}
+        {@const have = owned.get(item.id)}
         <div class="tile">
           <div class="ghost-frame">
             <Cover title={item.title} author={item.author} coverUrl={item.coverUrl} ghost reserveCorner />
-            <span class="wanted" role="img" aria-label="Wanted" title="Wanted"><Icon name="bookmark" size={13} /></span>
+            {#if have}
+              <span class="wanted have" role="img" aria-label="Already in your library" title="Already in your library"><Icon name="check" size={13} /></span>
+            {:else}
+              <span class="wanted" role="img" aria-label="Wanted" title="Wanted"><Icon name="bookmark" size={13} /></span>
+            {/if}
           </div>
           <div class="text">
             <div class="title">{item.title}</div>
@@ -37,9 +79,15 @@
             {/if}
           </div>
           <div class="buttons">
-            <button class="btn sm find" onclick={() => nav.openCatalog(wishToCatalog(item), { kind: 'wishlist' })}>
-              Where to get it
-            </button>
+            {#if have}
+              <button class="btn sm find have" onclick={() => nav.openBook(have.id, { kind: 'wishlist' })}>
+                Open in library
+              </button>
+            {:else}
+              <button class="btn sm find" onclick={() => nav.openCatalog(wishToCatalog(item), { kind: 'wishlist' })}>
+                Where to get it
+              </button>
+            {/if}
             <button
               class="icon-btn"
               aria-label="Remove {item.title} from wishlist"
@@ -85,7 +133,33 @@
     border-radius: 50%;
     background: var(--chip-overlay);
     color: var(--text);
-    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12);
+    box-shadow: 0 0 0 1px var(--badge-ring);
+  }
+  .wanted.have {
+    background: var(--teal);
+    color: var(--on-teal);
+    box-shadow: none;
+  }
+  .owned-banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px 10px 14px;
+    border-radius: var(--radius-m);
+    background: var(--teal-bg);
+    border: 1px solid var(--teal-border);
+    color: var(--text);
+    font-size: 14px;
+  }
+  .owned-banner :global(svg) {
+    color: var(--teal);
+    flex: none;
+  }
+  .owned-banner span {
+    flex: 1;
+  }
+  .find.have {
+    color: var(--teal);
   }
   .text {
     min-width: 0;

@@ -153,7 +153,7 @@
     flex-direction: column;
     gap: 16px;
     padding: 22px;
-    border-radius: 16px;
+    border-radius: var(--r3);
     background: var(--surface-card);
     border: 1px solid var(--border-soft);
   }
@@ -253,7 +253,7 @@
   .rows {
     display: flex;
     flex-direction: column;
-    border-radius: 12px;
+    border-radius: var(--r2);
     border: 1px solid var(--border-soft);
     overflow: hidden;
   }

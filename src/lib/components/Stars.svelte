@@ -51,7 +51,7 @@
     display: inline-flex;
     padding: 2px;
     border: 0;
-    border-radius: 4px;
+    border-radius: var(--r1);
     background: transparent;
     color: var(--border-dashed);
   }

@@ -4,6 +4,8 @@
 import {
   deleteBook,
   openBook,
+  openReader,
+  READABLE_FORMATS,
   queueForDevice,
   removeFromDevice,
   revealBook,
@@ -76,7 +78,14 @@ class BookActions {
     );
   }
 
-  read(book: Book) {
+  /** Opens the book in Shelf's reader window, or in another app for formats it can't show. */
+  async read(book: Book) {
+    if (!READABLE_FORMATS.includes(book.format)) return this.openElsewhere(book);
+    await attempt('Could not open the reader', () => openReader(book.id));
+  }
+
+  /** Opens the book's file with whatever app the computer uses for it. */
+  openElsewhere(book: Book) {
     return run('Could not open the book', () => openBook(book.id));
   }
 

@@ -11,6 +11,15 @@
           <span class="detail mono">{t.detail}</span>
         {/if}
       </div>
+      {#if t.action}
+        {@const action = t.action}
+        <button
+          class="action"
+          onclick={() => {
+            toasts.dismiss(t.id);
+            action.run();
+          }}>{action.label}</button>
+      {/if}
       <button class="close" aria-label="Dismiss message" onclick={() => toasts.dismiss(t.id)}>
         <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
       </button>
@@ -19,6 +28,19 @@
 </div>
 
 <style>
+  .action {
+    flex: none;
+    height: 30px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 8px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
   .stack {
     position: fixed;
     left: 50%;
@@ -40,14 +62,17 @@
     gap: 12px;
     max-width: 100%;
     padding: 12px 12px 12px 16px;
-    border-radius: 12px;
-    background: var(--toast-bg);
+    border-radius: 18px;
+    background: var(--glass-ink);
+    backdrop-filter: var(--glass-filter);
     color: var(--toast-text);
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
-    animation: rise 0.18s ease-out;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.14),
+      0 12px 30px rgba(0, 0, 0, 0.22);
+    animation: rise var(--dur) var(--ease);
   }
   .toast.error {
-    background: var(--toast-error-bg);
+    background: color-mix(in srgb, var(--toast-error-bg) 86%, transparent);
     color: var(--toast-error-text);
   }
   .body {
@@ -77,7 +102,7 @@
     height: 24px;
     padding: 0;
     border: 0;
-    border-radius: 6px;
+    border-radius: var(--r1);
     background: transparent;
     color: inherit;
     opacity: 0.6;

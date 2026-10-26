@@ -102,6 +102,16 @@ CREATE TABLE book_labels (
 );
 ";
 
+// v3: where you are in each book when reading on this computer.
+const SCHEMA_V3: &str = "
+CREATE TABLE reading_positions (
+    book_id    INTEGER PRIMARY KEY REFERENCES books(id) ON DELETE CASCADE,
+    position   TEXT NOT NULL,   -- an EPUB CFI from the reader
+    fraction   REAL NOT NULL,   -- 0..1 through the book
+    updated_at TEXT NOT NULL
+);
+";
+
 fn migrate(conn: &Connection) -> Result<()> {
     let version: i32 = conn.pragma_query_value(None, "user_version", |r| r.get(0))?;
     if version < 1 {
@@ -121,6 +131,10 @@ fn migrate(conn: &Connection) -> Result<()> {
             )?;
         }
         conn.pragma_update(None, "user_version", 2)?;
+    }
+    if version < 3 {
+        conn.execute_batch(SCHEMA_V3)?;
+        conn.pragma_update(None, "user_version", 3)?;
     }
     Ok(())
 }
@@ -548,6 +562,52 @@ pub fn delete_book(conn: &Connection, id: i64) -> Result<()> {
     Ok(())
 }
 
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReadingPosition {
+    pub position: String,
+    pub fraction: f64,
+}
+
+pub fn reading_position(conn: &Connection, book_id: i64) -> Result<Option<ReadingPosition>> {
+    Ok(conn
+        .query_row(
+            "SELECT position, fraction FROM reading_positions WHERE book_id = ?1",
+            [book_id],
+            |r| {
+                Ok(ReadingPosition {
+                    position: r.get(0)?,
+                    fraction: r.get(1)?,
+                })
+            },
+        )
+        .optional()?)
+}
+
+/// Saves where you are in a book read on this computer, and updates its progress and
+/// status in the library to match (reaching the last page marks it finished).
+pub fn save_reading_position(
+    conn: &Connection,
+    book_id: i64,
+    position: &str,
+    fraction: f64,
+) -> Result<()> {
+    let fraction = fraction.clamp(0.0, 1.0);
+    let at = now();
+    conn.execute(
+        "INSERT INTO reading_positions (book_id, position, fraction, updated_at) VALUES (?1, ?2, ?3, ?4)
+         ON CONFLICT(book_id) DO UPDATE SET position = excluded.position, fraction = excluded.fraction,
+                                            updated_at = excluded.updated_at",
+        params![book_id, position, fraction, at],
+    )?;
+    let (progress, status) = if fraction >= 0.995 {
+        (100.0, "finished")
+    } else {
+        ((fraction * 100.0).max(0.1), "reading")
+    };
+    set_progress(conn, book_id, progress, status, Some(&at))
+}
+
 pub fn set_progress(
     conn: &Connection,
     id: i64,
@@ -735,9 +795,23 @@ pub fn normalize(text: &str) -> String {
         .collect()
 }
 
-/// The title without its subtitle: "The Hobbit, or There and Back Again" → "thehobbit".
+/// Drops a leading "The", "A" or "An", which catalogues often disagree on.
+fn without_article(title: &str) -> &str {
+    let trimmed = title.trim_start();
+    for article in ["the ", "an ", "a "] {
+        if trimmed.len() > article.len()
+            && trimmed.is_char_boundary(article.len())
+            && trimmed[..article.len()].eq_ignore_ascii_case(article)
+        {
+            return &trimmed[article.len()..];
+        }
+    }
+    trimmed
+}
+
+/// The title without its subtitle: "The Hobbit, or There and Back Again" → "hobbit".
 fn main_title(title: &str) -> String {
-    let lower = title.to_lowercase();
+    let lower = without_article(title).to_lowercase();
     let cut = [":", "(", ";", ", or ", " - "]
         .iter()
         .filter_map(|sep| lower.find(sep))
@@ -756,13 +830,51 @@ fn last_name(author: &str) -> String {
     )
 }
 
+/// A title's words, lower-cased, without punctuation or anything from the first "(" on
+/// (usually the series: "(Mistborn, #1)").
+fn title_words(title: &str) -> Vec<String> {
+    let cut = &title[..title.find('(').unwrap_or(title.len())];
+    cut.replace('&', " and ")
+        .replace(['\'', '\u{2019}'], "")
+        .to_lowercase()
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .map(str::to_string)
+        .collect()
+}
+
+/// True when one title is the end of the other, as when a franchise or series name comes
+/// first: "Star Wars Inquisitor: Rise of the Red Blade" and "Inquisitor: Rise of the Red
+/// Blade". The shorter title needs three words or more (counting a leading "The"), so
+/// "Thrawn" alone doesn't match every "Something: Thrawn".
+fn ends_with_title(a: &str, b: &str) -> bool {
+    let (wa, wb) = (title_words(a), title_words(b));
+    let (short, long) = if wa.len() <= wb.len() {
+        (wa, wb)
+    } else {
+        (wb, wa)
+    };
+    if short.len() < 3 {
+        return false;
+    }
+    let tail = match short[0].as_str() {
+        "the" | "a" | "an" => &short[1..],
+        _ => &short[..],
+    };
+    tail.len() < long.len() && long.ends_with(tail)
+}
+
 /// True when a library book and a wished-for book are probably the same work.
 pub fn same_work(title_a: &str, author_a: &str, title_b: &str, author_b: &str) -> bool {
-    let (ta, tb) = (normalize(title_a), normalize(title_b));
+    let (ta, tb) = (
+        normalize(without_article(title_a)),
+        normalize(without_article(title_b)),
+    );
     if ta.is_empty() || tb.is_empty() {
         return false;
     }
-    let titles_match = ta == tb || main_title(title_a) == main_title(title_b);
+    let titles_match =
+        ta == tb || main_title(title_a) == main_title(title_b) || ends_with_title(title_a, title_b);
     let (la, lb) = (last_name(author_a), last_name(author_b));
     titles_match && (la.is_empty() || lb.is_empty() || la == lb)
 }
@@ -840,6 +952,101 @@ mod tests {
             "Circe",
             "Someone Else"
         ));
+        assert!(same_work(
+            "Sword of Kaigen",
+            "M. L. Wang",
+            "The Sword of Kaigen: A Theonite War Story",
+            "M.L. Wang"
+        ));
+        assert!(same_work(
+            "A Memory Called Empire",
+            "Arkady Martine",
+            "Memory Called Empire",
+            "Martine"
+        ));
+        assert!(!same_work(
+            "The Way of Kings",
+            "Brandon Sanderson",
+            "Words of Radiance",
+            "Brandon Sanderson"
+        ));
+        // A franchise or series name in front of the title.
+        assert!(same_work(
+            "Star Wars Inquisitor: Rise of the Red Blade",
+            "Delilah S. Dawson",
+            "Inquisitor: Rise of the Red Blade (Star Wars)",
+            "Delilah S. Dawson"
+        ));
+        assert!(same_work(
+            "Star Wars: Inquisitor: Rise of the Red Blade",
+            "Delilah S. Dawson",
+            "Inquisitor: Rise of the Red Blade",
+            "Delilah S. Dawson"
+        ));
+        assert!(same_work(
+            "Inquisitor - Rise of the Red Blade (Star Wars)",
+            "Delilah Dawson",
+            "Star Wars: Inquisitor: Rise of the Red Blade",
+            ""
+        ));
+        assert!(same_work(
+            "Mistborn: The Final Empire",
+            "Brandon Sanderson",
+            "The Final Empire (Mistborn, #1)",
+            "Sanderson"
+        ));
+        // A short, generic ending isn't enough on its own.
+        assert!(!same_work(
+            "Circe: A Novel",
+            "Madeline Miller",
+            "Galatea: A Novel",
+            "Madeline Miller"
+        ));
+        assert!(!same_work(
+            "Star Wars: Thrawn",
+            "Timothy Zahn",
+            "Thrawn",
+            "Timothy Zahn"
+        ));
+    }
+
+    #[test]
+    fn saves_reading_positions() {
+        let conn = Connection::open_in_memory().unwrap();
+        migrate(&conn).unwrap();
+        let meta = BookMeta {
+            title: "Dune".into(),
+            author: "Frank Herbert".into(),
+            ..Default::default()
+        };
+        let id = insert_book(
+            &conn,
+            &NewBook {
+                meta: &meta,
+                format: "epub",
+                size_bytes: 1,
+                file_path: "/d.epub",
+                content_hash: "h",
+            },
+        )
+        .unwrap();
+        assert!(reading_position(&conn, id).unwrap().is_none());
+        save_reading_position(&conn, id, "epubcfi(/6/4!/4/2)", 0.42).unwrap();
+        let pos = reading_position(&conn, id).unwrap().unwrap();
+        assert_eq!(
+            (pos.position.as_str(), pos.fraction),
+            ("epubcfi(/6/4!/4/2)", 0.42)
+        );
+        let book = get_book(&conn, id).unwrap();
+        assert_eq!((book.progress, book.status.as_str()), (42.0, "reading"));
+        assert!(book.last_read.is_some());
+        save_reading_position(&conn, id, "epubcfi(/6/90!/4/2)", 1.0).unwrap();
+        assert_eq!(get_book(&conn, id).unwrap().status, "finished");
+        delete_book(&conn, id).unwrap();
+        assert!(
+            reading_position(&conn, id).unwrap().is_none(),
+            "removed with the book"
+        );
     }
 
     #[test]

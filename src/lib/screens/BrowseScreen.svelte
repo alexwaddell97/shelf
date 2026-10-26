@@ -299,10 +299,10 @@
     border: 1px solid var(--border-soft);
     color: var(--text);
     text-align: left;
-    transition: box-shadow 0.15s ease;
+    transition: box-shadow var(--dur) var(--ease);
   }
   button.row:hover {
-    box-shadow: inset 0 0 0 999px rgba(255, 255, 255, 0.05);
+    box-shadow: inset 0 0 0 999px var(--hover-wash);
   }
   .row-text {
     flex: 1;
@@ -338,7 +338,7 @@
   }
   .cover-wrap {
     display: block;
-    transition: transform 0.18s ease;
+    transition: transform var(--dur) var(--ease);
   }
   .series-card:hover .cover-wrap,
   .series-card:focus-visible .cover-wrap {

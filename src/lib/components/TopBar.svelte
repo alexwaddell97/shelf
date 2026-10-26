@@ -3,8 +3,19 @@
   import { imports } from '$lib/stores/imports.svelte';
   import { nav } from '$lib/stores/nav.svelte';
   import Icon from './Icon.svelte';
+  import SearchBox from './SearchBox.svelte';
+  import { tip } from '$lib/tooltip';
 
   const device = $derived(devices.connected[0]);
+
+  // The bar sits flat on the page; once the page scrolls under it, it frosts over.
+  let scrolled = $state(false);
+  $effect(() => {
+    const check = () => (scrolled = window.scrollY > 4);
+    check();
+    window.addEventListener('scroll', check, { passive: true });
+    return () => window.removeEventListener('scroll', check);
+  });
   const queue = $derived(devices.queueCount);
   const progress = $derived(devices.progress);
   const syncing = $derived(devices.syncing);
@@ -37,25 +48,8 @@
   }
 </script>
 
-<header>
-  <div class="search">
-    <span class="search-icon"><Icon name="search" /></span>
-    <label for="shelf-search" class="sr-only">Search books</label>
-    <input
-      id="shelf-search"
-      type="search"
-      bind:value={nav.query}
-      placeholder="Search your library, or find new books"
-      autocomplete="off"
-      spellcheck="false"
-      onkeydown={(e) => {
-        if (e.key === 'Escape' && nav.query) {
-          nav.query = '';
-          e.stopPropagation();
-        }
-      }}
-    />
-  </div>
+<header class:scrolled>
+  <SearchBox />
 
   <button class="btn primary add" onclick={add} disabled={adding}>
     <Icon name="plus" />
@@ -68,8 +62,8 @@
       class:busy={syncing}
       class:done={synced && !syncing}
       onclick={() => devices.sync(device.id)}
-      disabled={syncing}
-      title={queue > 0 ? `Send ${queue} waiting and update reading progress` : 'Update reading progress from your e-reader'}
+      aria-disabled={syncing}
+      use:tip={devices.syncTip(device)}
       aria-live="polite"
     >
       <span class="fill" style:width={syncing ? `${percent}%` : '0%'} aria-hidden="true"></span>
@@ -81,13 +75,15 @@
     </button>
   {/if}
 
-  <button class="btn device-chip" onclick={() => nav.go('devices')}>
+  <button class="btn device-chip" onclick={() => nav.go('devices')} use:tip={devices.deviceTip(device)}>
     <span class="dot" class:pulse={!!device} class:live={!!device}></span>
     <span class="device-name">{device ? device.name : 'No e-reader'}</span>
   </button>
 </header>
 
 <style>
+  /* A toolbar that sits flat on the page, like a Mac app's. When the page scrolls under
+     it, it turns into a strip of frosted glass with a hairline beneath. */
   header {
     position: sticky;
     top: 0;
@@ -95,43 +91,17 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 12px;
-    padding: 16px var(--pad-x);
-    background: rgba(16, 17, 20, 0.92);
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid var(--border-faint);
-  }
-  .search {
-    position: relative;
-    flex: 1 1 320px;
-    display: flex;
-    align-items: center;
     gap: 10px;
-    height: 44px;
-    padding: 0 14px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-l);
-  }
-  .search:focus-within {
-    border-color: var(--accent);
-  }
-  .search-icon {
-    display: flex;
-    color: var(--faint);
-  }
-  input {
-    flex: 1;
-    min-width: 0;
-    height: 100%;
+    padding: var(--float-gap) var(--pad-x) 12px;
     background: transparent;
-    border: 0;
-    outline: none;
-    color: var(--text);
-    font-size: 15px;
+    transition:
+      background var(--dur) var(--ease),
+      box-shadow var(--dur) var(--ease);
   }
-  input:focus-visible {
-    outline: none;
+  header.scrolled {
+    background: var(--glass-thick);
+    backdrop-filter: var(--glass-filter);
+    box-shadow: 0 0.5px 0 var(--border);
   }
   .add {
     padding: 0 18px;
@@ -139,8 +109,6 @@
   .device-chip {
     gap: 10px;
     padding: 0 14px;
-    background: var(--surface);
-    border-color: var(--border);
   }
   .device-name {
     font-weight: 500;
@@ -162,14 +130,14 @@
     height: 44px;
     padding: 0 20px;
     justify-content: center;
-    background: var(--teal);
-    border-color: var(--teal);
-    color: #0b1a18;
-    font-weight: 700;
-    font-size: 15px;
+    /* Tinted, not filled: one strong colour (Add books) is enough. */
+    background: color-mix(in srgb, var(--teal) 12%, transparent);
+    border-color: transparent;
+    color: var(--teal);
+    font-weight: 600;
   }
-  .sync:hover:not(:disabled) {
-    filter: brightness(1.08);
+  .sync:hover:not(.busy) {
+    background: color-mix(in srgb, var(--teal) 18%, transparent);
   }
   .sync.busy {
     background: var(--teal-bg);
@@ -181,7 +149,7 @@
     border-color: var(--teal);
     color: var(--teal);
   }
-  .sync:disabled {
+  .sync.busy {
     cursor: default;
     opacity: 1;
   }
@@ -189,8 +157,8 @@
   .fill {
     position: absolute;
     inset: 0 auto 0 0;
-    background: rgba(92, 200, 186, 0.22);
-    transition: width 0.25s ease;
+    background: var(--teal-wash);
+    transition: width var(--dur) var(--ease);
   }
   .sync-icon,
   .sync-label,
@@ -203,7 +171,7 @@
     justify-content: center;
     padding: 1px 7px;
     border-radius: 999px;
-    background: #0b1a18;
+    background: var(--on-teal);
     color: var(--teal);
     font-size: 12px;
     font-weight: 700;

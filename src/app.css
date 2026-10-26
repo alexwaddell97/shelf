@@ -1,75 +1,283 @@
 /* Shelf global styles: design tokens, reset and a handful of shared primitives.
-   Component-specific layout lives in each component's scoped <style>. */
+   Component-specific layout lives in each component's scoped <style>.
+
+   Every colour lives here as a token. The dark set is the default; the light set applies
+   when <html data-theme="light"> (the theme store keeps that attribute in step with the
+   user's choice, including "System", and an inline script in app.html sets it before the
+   first paint). */
 
 :root {
   color-scheme: dark;
 
-  /* Grounds and surfaces */
-  --bg: #101114;
-  --bg-nav: #0c0d0f;
-  --surface: #17181c;
-  --surface-card: #141519;
-  --surface-raised: #1a1b20;
-  --surface-hover: #1c1d22;
-  --surface-chip: #1f2026;
-  --surface-tile: #24252c;
-  --surface-modal: #16171b;
-  --surface-footer: #131418;
-  --surface-sunken: #101114;
+  /* ---- Grounds and surfaces (dark, warm neutrals) ---- */
+  --bg: #121214;
+  --bg-nav: #0e0e10;
+  --surface: #1a1a1d;
+  --surface-card: #17171a;
+  --surface-raised: #1d1d21;
+  --surface-hover: #202024;
+  --surface-chip: #232327;
+  --surface-tile: #28282d;
+  --surface-modal: #19191c;
+  --surface-footer: #151517;
+  --surface-sunken: #0f0f11;
 
-  /* Borders */
-  --border: #2a2b32;
-  --border-control: #2e2f36;
-  --border-soft: #23242b;
-  --border-faint: #202127;
-  --border-dashed: #3a3b44;
+  /* ---- Borders ---- */
+  --border: #2c2c31;
+  --border-control: #333338;
+  --border-soft: #26262a;
+  --border-faint: #212125;
+  --border-dashed: #3d3d43;
 
-  /* Text */
-  --text: #eceae6;
-  --text-soft: #c9c9d1;
-  --text-body: #d4d3cf;
-  --muted: #a1a1aa;
-  --faint: #8b8b95;
+  /* ---- Text ---- */
+  --text: #efece6;
+  --text-soft: #cdcbc7;
+  --text-body: #d8d6d1;
+  --muted: #a5a3a0;
+  --faint: #979590;
 
-  /* Accent (amber) */
+  /* ---- Accent (amber) ---- */
   --accent: #f2b347;
-  --accent-hover: #ffd27a;
+  --accent-hover: #f6c46a;
   --on-accent: #17130a;
-  --accent-bg: #221c10;
-  --accent-bg-strong: #1f1b12;
+  --accent-bg: #231d11;
+  --accent-bg-strong: #211c12;
   --accent-border: #4a3b1c;
   --accent-text: #e9dfc8;
 
-  /* On device (teal) */
+  /* ---- On device (teal) ---- */
   --teal: #5cc8ba;
-  --teal-bg: #11201f;
+  --teal-bg: #112120;
   --teal-border: #23423f;
   --teal-track: #22332f;
+  --teal-wash: rgba(92, 200, 186, 0.22);
+  --teal-pulse: rgba(92, 200, 186, 0.55);
   --on-teal: #0b1a18;
 
   --danger: #e8a598;
-  --track: #26272e;
-  --track-strong: #2e2f36;
-  --dot-off: #5a5b64;
-  --toast-bg: #eceae6;
-  --toast-text: #101114;
+  --on-danger: #2a0f0a;
+  --track: #28282d;
+  --track-strong: #323238;
+  --dot-off: #5d5d63;
+
+  /* ---- Toasts (inverted against the page) ---- */
+  --toast-bg: #efece6;
+  --toast-text: #121214;
   --toast-mono: #3a3a42;
   --toast-error-bg: #f6d9d3;
   --toast-error-text: #3a1410;
   --toast-error-mono: #6b2a21;
-  --scrim: rgba(6, 6, 8, 0.78);
-  --chip-overlay: rgba(12, 13, 15, 0.85);
 
+  /* ---- Overlays and washes ---- */
+  --scrim: rgba(6, 6, 8, 0.74);
+  --drop-bg: rgba(14, 14, 16, 0.84);
+  --header-bg: rgba(18, 18, 20, 0.82);
+  --badge-bg: rgba(14, 14, 16, 0.86);
+  --badge-ring: rgba(255, 255, 255, 0.12);
+  --hover-wash: rgba(255, 255, 255, 0.05);
+  --primary-wash: rgba(255, 255, 255, 0.18);
+  --menu-hover: rgba(255, 255, 255, 0.07);
+  --cover-spine: rgba(0, 0, 0, 0.18);
+  --cover-track: rgba(0, 0, 0, 0.5);
+  --cover-ring: rgba(255, 255, 255, 0.07);
+  --selection: rgba(242, 179, 71, 0.35);
+  --scroll-thumb: #3d3d43;
+  --scroll-thumb-hover: #55555c;
+  --skeleton-a: #1d1d21;
+  --skeleton-b: #26262b;
+  --device-body: #0b0b0d;
+  --device-screen: #d8d5cb;
+
+  /* ---- Elevation ---- */
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.25);
+  --shadow-2: 0 14px 34px rgba(0, 0, 0, 0.5);
+  /* Glass: frosted surfaces that float over the content (see "Glass" below). */
+  --glass: rgba(34, 33, 38, 0.56);
+  --glass-thick: rgba(30, 29, 34, 0.8);
+  --glass-tint: rgba(255, 255, 255, 0.06);
+  --glass-selected: rgba(255, 255, 255, 0.1);
+  --glass-ink: rgba(12, 12, 14, 0.82);
+  --glass-shine:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12), inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+  --glass-shadow:
+    var(--glass-shine), 0 0 0 0.5px rgba(0, 0, 0, 0.6), 0 14px 36px rgba(0, 0, 0, 0.45);
+  --glass-shadow-lift:
+    var(--glass-shine), 0 0 0 0.5px rgba(0, 0, 0, 0.6), 0 30px 80px rgba(0, 0, 0, 0.6);
+  --ambient-1: rgba(242, 179, 71, 0.07);
+  --ambient-2: rgba(92, 200, 186, 0.05);
+  --ambient-3: rgba(242, 179, 71, 0.03);
+  /* Soft fills for buttons and fields. */
+  --fill: rgba(118, 118, 128, 0.24);
+  --fill-hover: rgba(118, 118, 128, 0.32);
+  --shadow-3: 0 30px 80px rgba(0, 0, 0, 0.6);
+  --shadow-cover: inset 0 0 0 1px var(--cover-ring), 0 10px 24px rgba(0, 0, 0, 0.45);
+
+  /* ---- Bookcase (dark walnut) ---- */
+  --case-wall-1: #1d1712;
+  --case-wall-2: #16120e;
+  --case-side: rgba(0, 0, 0, 0.45);
+  --case-grain: rgba(255, 255, 255, 0.012);
+  --case-border: #2b2119;
+  --case-inset: rgba(0, 0, 0, 0.8);
+  --case-drop: rgba(0, 0, 0, 0.35);
+  --shelf-shade: rgba(0, 0, 0, 0.42);
+  --plank-1: #8a5d39;
+  --plank-2: #6b4529;
+  --plank-3: #553620;
+  --plank-grain-a: rgba(255, 255, 255, 0.035);
+  --plank-grain-b: rgba(0, 0, 0, 0.05);
+  --plank-hi: rgba(255, 220, 180, 0.28);
+  --plank-drop: rgba(0, 0, 0, 0.75);
+  --plank-edge-1: #46291a;
+  --plank-edge-2: #351f13;
+  --book-cast-1: rgba(0, 0, 0, 0.45);
+  --book-cast-2: rgba(0, 0, 0, 0.55);
+  --spine-hi: rgba(255, 255, 255, 0.16);
+
+  /* ---- Type ---- */
   --font-sans: 'Geist Variable', 'Geist', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-serif: 'Literata Variable', 'Literata', Georgia, 'Iowan Old Style', 'Times New Roman', serif;
   --font-mono: 'Geist Mono Variable', 'Geist Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
 
-  --radius-s: 6px;
-  --radius-m: 8px;
-  --radius-l: 10px;
-  --radius-xl: 14px;
+  /* ---- Radius scale: 6 / 10 / 14 / 20 ---- */
+  --r1: 6px;
+  --r2: 10px;
+  --r3: 14px;
+  --r4: 20px;
+  --radius-s: var(--r1);
+  --radius-m: var(--r2);
+  --radius-l: var(--r2);
+  --radius-xl: var(--r3);
+
+  /* ---- Motion ---- */
+  --ease: cubic-bezier(0.22, 0.7, 0.2, 1);
+  --dur: 180ms;
 
   --pad-x: 32px;
   --nav-w: 224px;
+  /* Space around the floating sidebar and top bar, and their corner radius. */
+  --float-gap: 12px;
+  --r-float: 24px;
+  --glass-filter: blur(28px) saturate(1.8);
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --bg: #f7f5f0;
+  --bg-nav: #f1ede5;
+  --surface: #fffefb;
+  --surface-card: #fcfaf6;
+  --surface-raised: #fffefb;
+  --surface-hover: #efe9df;
+  --surface-chip: #efeae1;
+  --surface-tile: #e9e3d8;
+  --surface-modal: #fffefb;
+  --surface-footer: #f7f4ee;
+  --surface-sunken: #f1ece4;
+
+  --border: #e3ded4;
+  --border-control: #d8d1c4;
+  --border-soft: #e9e4da;
+  --border-faint: #ece8df;
+  --border-dashed: #cfc7b6;
+
+  --text: #1f1d1a;
+  --text-soft: #45413b;
+  --text-body: #312e29;
+  --muted: #625d55;
+  --faint: #6b655c;
+
+  --accent: #8f5509;
+  --accent-hover: #6f4106;
+  --on-accent: #ffffff;
+  --accent-bg: #f8ebd2;
+  --accent-bg-strong: #f6e7c8;
+  --accent-border: #e6cf9f;
+  --accent-text: #4f3306;
+
+  --teal: #1a6f64;
+  --teal-bg: #e0f0ec;
+  --teal-border: #b5d8d0;
+  --teal-track: #cfe6e0;
+  --teal-wash: rgba(26, 111, 100, 0.14);
+  --teal-pulse: rgba(26, 111, 100, 0.45);
+  --on-teal: #ffffff;
+
+  --danger: #a93a27;
+  --on-danger: #ffffff;
+  --track: #e9e3d8;
+  --track-strong: #d8d1c4;
+  --dot-off: #b3aa99;
+
+  --toast-bg: #2b2823;
+  --toast-text: #f7f5f0;
+  --toast-mono: #cfc9bc;
+  --toast-error-bg: #4a1a13;
+  --toast-error-text: #fde7e2;
+  --toast-error-mono: #f0b5a8;
+
+  --scrim: rgba(40, 30, 15, 0.3);
+  --drop-bg: rgba(247, 245, 240, 0.88);
+  --header-bg: rgba(247, 245, 240, 0.8);
+  --badge-bg: rgba(255, 255, 255, 0.92);
+  --badge-ring: rgba(60, 40, 10, 0.14);
+  --hover-wash: rgba(60, 40, 10, 0.04);
+  --primary-wash: rgba(255, 255, 255, 0.16);
+  --menu-hover: rgba(60, 40, 10, 0.06);
+  --cover-spine: rgba(0, 0, 0, 0.14);
+  --cover-track: rgba(0, 0, 0, 0.45);
+  --cover-ring: rgba(0, 0, 0, 0.1);
+  --selection: rgba(143, 85, 9, 0.2);
+  --scroll-thumb: #d3cbbb;
+  --scroll-thumb-hover: #b8ad97;
+  --skeleton-a: #efeae1;
+  --skeleton-b: #f7f4ee;
+  --device-body: #2a2723;
+  --device-screen: #e9e4d8;
+
+  --shadow-1: 0 1px 2px rgba(60, 40, 10, 0.07), 0 2px 6px rgba(60, 40, 10, 0.04);
+  --shadow-2: 0 12px 30px rgba(60, 40, 10, 0.12);
+  --shadow-3: 0 28px 70px rgba(60, 40, 10, 0.2);
+  --shadow-cover: inset 0 0 0 1px var(--cover-ring), 0 8px 18px rgba(60, 40, 10, 0.2);
+
+  /* Glass: warm frosted white over the content, with a bright top edge like iOS. */
+  --glass: rgba(255, 253, 249, 0.6);
+  --glass-thick: rgba(253, 251, 247, 0.84);
+  --glass-tint: rgba(255, 253, 249, 0.55);
+  --glass-selected: rgba(255, 254, 251, 0.9);
+  --glass-ink: rgba(38, 34, 28, 0.8);
+  --glass-shine: inset 0 1px 0 rgba(255, 255, 255, 0.95), inset 0 0 0 1px rgba(255, 255, 255, 0.5);
+  --glass-shadow: var(--glass-shine), 0 0 0 0.5px rgba(60, 40, 10, 0.1), 0 10px 30px rgba(60, 40, 10, 0.08), 0 2px 6px rgba(60, 40, 10, 0.04);
+  --glass-shadow-lift: var(--glass-shine), 0 0 0 0.5px rgba(60, 40, 10, 0.1), 0 30px 80px rgba(60, 40, 10, 0.18), 0 6px 18px rgba(60, 40, 10, 0.06);
+  --ambient-1: rgba(214, 150, 50, 0.13);
+  --ambient-2: rgba(26, 111, 100, 0.06);
+  --ambient-3: rgba(180, 110, 40, 0.06);
+  /* Soft fills for buttons and fields. */
+  --fill: rgba(110, 85, 50, 0.08);
+  --fill-hover: rgba(110, 85, 50, 0.13);
+
+  /* Bookcase: light oak shelves on a pale wall. */
+  --case-wall-1: #fbf9f5;
+  --case-wall-2: #f3efe7;
+  --case-side: rgba(110, 75, 30, 0.05);
+  --case-grain: transparent;
+  --case-border: #ebe4d7;
+  --case-inset: rgba(90, 58, 20, 0.07);
+  --case-drop: rgba(70, 45, 10, 0.05);
+  --shelf-shade: rgba(90, 58, 20, 0.08);
+  --plank-1: #ecdbbf;
+  --plank-2: #e0c9a4;
+  --plank-3: #d3b78c;
+  --plank-grain-a: rgba(255, 255, 255, 0.14);
+  --plank-grain-b: rgba(120, 80, 30, 0.05);
+  --plank-hi: rgba(255, 248, 235, 0.8);
+  --plank-drop: rgba(90, 58, 20, 0.2);
+  --plank-edge-1: #c3a175;
+  --plank-edge-2: #b08d60;
+  --book-cast-1: rgba(70, 45, 10, 0.18);
+  --book-cast-2: rgba(70, 45, 10, 0.24);
+  --spine-hi: rgba(255, 255, 255, 0.2);
 }
 
 @media (max-width: 900px) {
@@ -89,13 +297,33 @@ html,
 body {
   margin: 0;
   min-height: 100%;
-  background: var(--bg);
+  /* Warm paper, with a faint amber glow for the glass surfaces to pick up. */
+  background:
+    radial-gradient(1100px 620px at 8% -8%, var(--ambient-1), transparent 62%),
+    radial-gradient(900px 700px at 105% 18%, var(--ambient-2), transparent 60%),
+    radial-gradient(900px 600px at 45% 115%, var(--ambient-3), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
   color: var(--text);
   font-family: var(--font-sans);
   font-size: 14px;
   line-height: 1.45;
+  font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+}
+
+/* Calm theme changes: colours ease over instead of snapping. */
+body,
+.btn,
+.chip,
+.panel,
+.input {
+  transition:
+    background-color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease);
 }
 
 h1,
@@ -141,13 +369,13 @@ a:hover {
 }
 
 ::selection {
-  background: rgba(242, 179, 71, 0.35);
+  background: var(--selection);
 }
 
-/* Scrollbars that match the ground */
+/* Thin scrollbars in the theme's own colours */
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--border-dashed) transparent;
+  scrollbar-color: var(--scroll-thumb) transparent;
 }
 
 .sr-only {
@@ -168,10 +396,12 @@ a:hover {
 
 /* ---- Type ---- */
 .page-title {
-  font-size: 30px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-family: var(--font-serif);
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -0.012em;
   line-height: 1.15;
+  font-variant-numeric: lining-nums;
 }
 .page-sub {
   margin-top: 4px;
@@ -185,6 +415,11 @@ a:hover {
   text-transform: uppercase;
   color: var(--muted);
 }
+.serif,
+[role='dialog'] h2 {
+  font-family: var(--font-serif);
+  font-variant-numeric: lining-nums;
+}
 
 /* ---- Buttons ---- */
 .btn {
@@ -194,21 +429,29 @@ a:hover {
   gap: 8px;
   height: 44px;
   padding: 0 16px;
-  border-radius: var(--radius-l);
-  border: 1px solid var(--border-control);
-  background: var(--surface-raised);
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: var(--fill);
   color: var(--text);
   font-weight: 500;
   white-space: nowrap;
-  transition: box-shadow 0.15s ease;
+  box-shadow: none;
+  transition:
+    box-shadow var(--dur) var(--ease),
+    transform 100ms var(--ease),
+    background-color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    color var(--dur) var(--ease);
 }
 .btn:hover:not(:disabled) {
-  box-shadow: inset 0 0 0 999px rgba(255, 255, 255, 0.05);
+  background: var(--fill-hover);
+}
+.btn:active:not(:disabled) {
+  transform: translateY(1px) scale(0.99);
 }
 .btn.sm {
   height: 40px;
   padding: 0 14px;
-  border-radius: var(--radius-m);
 }
 .btn.primary {
   border-color: transparent;
@@ -217,7 +460,7 @@ a:hover {
   font-weight: 600;
 }
 .btn.primary:hover:not(:disabled) {
-  box-shadow: inset 0 0 0 999px rgba(255, 255, 255, 0.18);
+  background: var(--accent-hover);
 }
 .btn.teal {
   border-color: var(--teal);
@@ -229,6 +472,7 @@ a:hover {
   border-color: transparent;
   background: transparent;
   color: var(--muted);
+  box-shadow: none;
 }
 .btn.danger {
   background: transparent;
@@ -236,6 +480,12 @@ a:hover {
 }
 .btn.ghost.danger {
   border-color: transparent;
+}
+.btn.destructive {
+  border-color: transparent;
+  background: var(--danger);
+  color: var(--on-danger);
+  font-weight: 600;
 }
 .btn.back {
   align-self: flex-start;
@@ -245,7 +495,7 @@ a:hover {
   background: transparent;
   color: var(--muted);
   font-weight: 400;
-  border-radius: var(--radius-m);
+  box-shadow: none;
 }
 .icon-btn {
   display: inline-flex;
@@ -254,17 +504,24 @@ a:hover {
   flex: none;
   width: 36px;
   height: 36px;
-  border-radius: var(--radius-m);
+  border-radius: var(--r2);
   border: 1px solid var(--border-control);
   background: transparent;
   color: var(--muted);
-  transition: box-shadow 0.15s ease;
+  transition:
+    box-shadow var(--dur) var(--ease),
+    transform 100ms var(--ease),
+    color var(--dur) var(--ease);
 }
 .icon-btn.bare {
   border-color: transparent;
 }
 .icon-btn:hover {
-  box-shadow: inset 0 0 0 999px rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 0 0 999px var(--hover-wash);
+  color: var(--text);
+}
+.icon-btn:active {
+  transform: scale(0.94);
 }
 .link-btn {
   padding: 0;
@@ -304,20 +561,21 @@ a:hover {
 /* ---- Surfaces ---- */
 .panel {
   padding: 18px;
-  border-radius: var(--radius-xl);
+  border-radius: var(--r3);
   background: var(--surface-card);
   border: 1px solid var(--border-soft);
+  box-shadow: var(--shadow-1);
 }
 .empty {
   padding: 40px;
   text-align: center;
   color: var(--muted);
   border: 1px dashed var(--border);
-  border-radius: 12px;
+  border-radius: var(--r3);
 }
 .note {
   padding: 12px 14px;
-  border-radius: var(--radius-l);
+  border-radius: var(--r2);
   background: var(--accent-bg);
   color: var(--accent-text);
   font-size: 13px;
@@ -338,10 +596,14 @@ a:hover {
   width: 100%;
   height: 40px;
   padding: 0 12px;
-  border-radius: var(--radius-m);
+  border-radius: var(--r2);
   border: 1px solid var(--border-control);
   background: var(--surface-sunken);
   color: var(--text);
+}
+.input:focus-visible {
+  outline-offset: 0;
+  border-color: var(--accent);
 }
 textarea.input {
   height: auto;
@@ -369,10 +631,10 @@ select.input {
 }
 @keyframes pulse {
   0% {
-    box-shadow: 0 0 0 0 rgba(92, 200, 186, 0.55);
+    box-shadow: 0 0 0 0 var(--teal-pulse);
   }
   100% {
-    box-shadow: 0 0 0 8px rgba(92, 200, 186, 0);
+    box-shadow: 0 0 0 8px transparent;
   }
 }
 .spin {
@@ -382,6 +644,67 @@ select.input {
   to {
     transform: rotate(360deg);
   }
+}
+/* A screen settling into place when you switch views. */
+.view-in {
+  animation: view-in 220ms var(--ease) both;
+}
+@keyframes view-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+/* Placeholder blocks while the library loads. */
+.skeleton {
+  border-radius: var(--r1);
+  background: linear-gradient(100deg, var(--skeleton-a) 30%, var(--skeleton-b) 50%, var(--skeleton-a) 70%) 0 0 / 300% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+@keyframes shimmer {
+  from {
+    background-position: 100% 0;
+  }
+  to {
+    background-position: -100% 0;
+  }
+}
+
+/* Hover cards from the `tip` action (src/lib/tooltip.ts): an ink card with a bold first line. */
+.shelf-tip {
+  position: fixed;
+  z-index: 1000;
+  max-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 11px 9px;
+  border-radius: 12px;
+  background: var(--glass-ink);
+  backdrop-filter: var(--glass-filter);
+  color: #f7f5f0;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 8px 24px rgba(0, 0, 0, 0.22);
+  font-size: 12px;
+  line-height: 1.4;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(3px);
+  transition:
+    opacity 120ms var(--ease),
+    transform 120ms var(--ease);
+}
+.shelf-tip.shown {
+  opacity: 1;
+  transform: none;
+}
+.shelf-tip strong {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.shelf-tip span {
+  opacity: 0.72;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -394,7 +717,8 @@ select.input {
     scroll-behavior: auto !important;
   }
   .pulse,
-  .spin {
+  .spin,
+  .skeleton {
     animation: none !important;
   }
 }

@@ -5,6 +5,7 @@
   import { library } from '$lib/stores/library.svelte';
   import { nav, type BrowseKind, type Section } from '$lib/stores/nav.svelte';
   import { settings } from '$lib/stores/settings.svelte';
+  import { theme } from '$lib/stores/theme.svelte';
   import { wishlist } from '$lib/stores/wishlist.svelte';
   import Icon, { type IconName } from './Icon.svelte';
 
@@ -12,7 +13,7 @@
     { section: 'library', label: 'Library', icon: 'library' },
     { section: 'wishlist', label: 'Wishlist', icon: 'bookmark' },
     { section: 'devices', label: 'Devices', icon: 'device' },
-    { section: 'sources', label: 'Sources', icon: 'link' },
+    { section: 'sources', label: 'Settings', icon: 'sliders' },
     { section: 'accounts', label: 'Accounts', icon: 'user' }
   ];
 
@@ -35,12 +36,8 @@
 
 <nav aria-label="Main">
   <div class="brand">
-    <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
-      <rect x="2" y="4" width="5" height="19" rx="1.5" fill="var(--accent)"></rect>
-      <rect x="9" y="7" width="5" height="16" rx="1.5" fill="var(--text)"></rect>
-      <rect x="16.5" y="3.5" width="5" height="19" rx="1.5" fill="var(--teal)" transform="rotate(10 19 13)"></rect>
-    </svg>
     <span class="brand-name">Shelf</span>
+    <span class="brand-initial" aria-hidden="true">S</span>
   </div>
 
   <div class="items">
@@ -103,27 +100,41 @@
           {#if device}
             {queue ? `Connected · ${queue} waiting` : 'Connected · up to date'}
           {:else}
-            Plug one in over USB
+            Plug it in, then tap Connect on your Kobo
           {/if}
         </span>
       </span>
+    </button>
+    <button
+      class="theme-toggle"
+      onclick={() => theme.toggle()}
+      aria-label={theme.resolved === 'dark' ? 'Switch to the light theme' : 'Switch to the dark theme'}
+      title={theme.resolved === 'dark' ? 'Switch to the light theme' : 'Switch to the dark theme'}
+    >
+      <Icon name={theme.resolved === 'dark' ? 'sun' : 'moon'} size={16} />
+      <span class="toggle-label">{theme.resolved === 'dark' ? 'Light theme' : 'Dark theme'}</span>
     </button>
   </div>
 </nav>
 
 <style>
+  /* A floating pane of frosted glass, inset from the window's edges. */
   nav {
     position: sticky;
-    top: 0;
+    top: var(--float-gap);
     align-self: start;
-    height: 100vh;
+    height: calc(100vh - 2 * var(--float-gap));
+    margin: var(--float-gap) 0 var(--float-gap) var(--float-gap);
     overflow-y: auto;
-    padding: 22px 14px;
+    padding: 22px 12px 12px;
     display: flex;
     flex-direction: column;
     gap: 24px;
-    background: var(--bg-nav);
-    border-right: 1px solid var(--border-faint);
+    border-radius: var(--r-float);
+    background: var(--glass);
+    backdrop-filter: var(--glass-filter);
+    box-shadow: var(--glass-shadow);
+    scrollbar-width: none;
   }
   .brand {
     display: flex;
@@ -131,10 +142,22 @@
     gap: 10px;
     padding: 0 10px;
   }
+  /* The wordmark: Literata at display size, where its optical-size axis gives the finer cut. */
+  .brand-name,
+  .brand-initial {
+    font-family: var(--font-serif);
+    font-optical-sizing: auto;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1;
+  }
   .brand-name {
-    font-size: 20px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
+    font-size: 27px;
+    letter-spacing: -0.012em;
+  }
+  .brand-initial {
+    display: none;
+    font-size: 26px;
   }
   .items {
     display: flex;
@@ -142,6 +165,7 @@
     gap: 2px;
   }
   .item {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 12px;
@@ -149,19 +173,43 @@
     min-height: 40px;
     padding: 0 12px;
     border: 0;
-    border-radius: var(--radius-m);
+    border-radius: 12px;
     background: transparent;
     color: var(--muted);
     font-weight: 500;
     text-align: left;
-    transition: box-shadow 0.15s ease;
+    transition: box-shadow var(--dur) var(--ease);
   }
   .item:hover {
-    box-shadow: inset 0 0 0 999px rgba(255, 255, 255, 0.05);
+    box-shadow: inset 0 0 0 999px var(--hover-wash);
   }
+  /* The current page sits on a raised pill of brighter glass. */
   .item.active {
-    background: var(--surface-hover);
+    background: var(--glass-selected);
+    box-shadow: var(--glass-shine), 0 1px 3px rgba(0, 0, 0, 0.08);
     color: var(--text);
+  }
+  .item.active :global(svg) {
+    color: var(--accent);
+  }
+  .theme-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 36px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: var(--r2);
+    background: transparent;
+    color: var(--muted);
+    font-size: 13px;
+    transition:
+      box-shadow var(--dur) var(--ease),
+      color var(--dur) var(--ease);
+  }
+  .theme-toggle:hover {
+    color: var(--text);
+    box-shadow: inset 0 0 0 999px var(--hover-wash);
   }
   .item.small {
     min-height: 34px;
@@ -209,9 +257,10 @@
     flex-direction: column;
     gap: 4px;
     padding: 12px;
-    border-radius: var(--radius-l);
-    background: var(--surface-card);
-    border: 1px solid var(--border-faint);
+    border-radius: 16px;
+    background: var(--glass-tint);
+    border: 0;
+    box-shadow: var(--glass-shine), 0 0 0 0.5px var(--border-faint);
     color: var(--text);
     text-align: left;
     min-width: 0;
@@ -220,10 +269,13 @@
     flex-direction: row;
     align-items: center;
     gap: 10px;
-    transition: box-shadow 0.15s ease;
+    transition: box-shadow var(--dur) var(--ease);
   }
   .card.device:hover {
-    box-shadow: inset 0 0 0 999px rgba(255, 255, 255, 0.05);
+    box-shadow:
+      inset 0 0 0 999px var(--hover-wash),
+      var(--glass-shine),
+      0 0 0 0.5px var(--border-faint);
   }
   .card-title {
     display: flex;
@@ -274,7 +326,11 @@
     .brand {
       padding: 0;
     }
+    .brand-initial {
+      display: block;
+    }
     .brand-name,
+    .toggle-label,
     .group-label,
     .label,
     .count,

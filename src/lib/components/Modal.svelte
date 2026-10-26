@@ -44,15 +44,16 @@
     padding: 16px;
     overflow-y: auto;
     background: var(--scrim);
-    backdrop-filter: blur(6px);
+    backdrop-filter: blur(10px) saturate(1.2);
   }
   .dialog {
     width: 100%;
     max-height: 100%;
     overflow-y: auto;
-    border-radius: 20px;
-    background: var(--surface-modal);
-    border: 1px solid var(--border);
-    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+    border-radius: 28px;
+    background: var(--glass-thick);
+    backdrop-filter: var(--glass-filter);
+    border: 0;
+    box-shadow: var(--glass-shadow-lift);
   }
 </style>
