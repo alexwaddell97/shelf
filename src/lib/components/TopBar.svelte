@@ -96,25 +96,31 @@
     padding: var(--float-gap) var(--pad-x) 12px;
     background: transparent;
   }
-  header::before {
+  /* Two layers fade out together at the bottom edge: a blur of whatever is underneath,
+     then the page's own background over it (fixed, so it lines up with the page around
+     it and leaves no seam). */
+  header::before,
+  header::after {
     content: '';
     position: absolute;
     inset: 0 0 -18px;
     z-index: -1;
     pointer-events: none;
     opacity: 0;
-    background: linear-gradient(
-      to bottom,
-      color-mix(in srgb, var(--bg) 82%, transparent) 0%,
-      color-mix(in srgb, var(--bg) 70%, transparent) 60%,
-      transparent 100%
-    );
-    backdrop-filter: blur(14px) saturate(1.5);
     mask-image: linear-gradient(to bottom, #000 62%, transparent 100%);
     transition: opacity var(--dur) var(--ease);
   }
+  header::before {
+    backdrop-filter: blur(14px);
+  }
+  header::after {
+    background: var(--page-bg);
+  }
   header.scrolled::before {
     opacity: 1;
+  }
+  header.scrolled::after {
+    opacity: 0.8;
   }
   .add {
     padding: 0 18px;

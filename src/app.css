@@ -293,17 +293,21 @@
   box-sizing: border-box;
 }
 
+/* Warm paper, with a faint amber glow for the glass surfaces to pick up. Fixed to the
+   window, so anything else drawn with it (the top bar's fade) lines up exactly. */
+:root {
+  --page-bg:
+    radial-gradient(1100px 620px at 8% -8%, var(--ambient-1), transparent 62%) fixed,
+    radial-gradient(900px 700px at 105% 18%, var(--ambient-2), transparent 60%) fixed,
+    radial-gradient(900px 600px at 45% 115%, var(--ambient-3), transparent 60%) fixed,
+    var(--bg);
+}
+
 html,
 body {
   margin: 0;
   min-height: 100%;
-  /* Warm paper, with a faint amber glow for the glass surfaces to pick up. */
-  background:
-    radial-gradient(1100px 620px at 8% -8%, var(--ambient-1), transparent 62%),
-    radial-gradient(900px 700px at 105% 18%, var(--ambient-2), transparent 60%),
-    radial-gradient(900px 600px at 45% 115%, var(--ambient-3), transparent 60%),
-    var(--bg);
-  background-attachment: fixed;
+  background: var(--page-bg);
   color: var(--text);
   font-family: var(--font-sans);
   font-size: 14px;
