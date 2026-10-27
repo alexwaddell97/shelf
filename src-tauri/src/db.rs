@@ -114,46 +114,75 @@ CREATE TABLE reading_positions (
 
 fn migrate(conn: &Connection) -> Result<()> {
     let version: i32 = conn.pragma_query_value(None, "user_version", |r| r.get(0))?;
-    if version < 1 {
-        conn.execute_batch(SCHEMA_V1)?;
-        conn.pragma_update(None, "user_version", 1)?;
-    }
-    if version < 2 {
-        conn.execute_batch(SCHEMA_V2)?;
-        let authors: Vec<(i64, String)> = conn
+    // Each step runs in one transaction with its version bump, so a crash part-way through
+    // can't leave a half-applied schema that fails on every later start.
+    let step = |to: i32, apply: &dyn Fn(&Connection) -> Result<()>| -> Result<()> {
+        if version < to {
+            let tx = conn.unchecked_transaction()?;
+            apply(&tx)?;
+            tx.pragma_update(None, "user_version", to)?;
+            tx.commit()?;
+        }
+        Ok(())
+    };
+    step(1, &|c| Ok(c.execute_batch(SCHEMA_V1)?))?;
+    step(2, &|c| {
+        c.execute_batch(SCHEMA_V2)?;
+        let authors: Vec<(i64, String)> = c
             .prepare("SELECT id, author FROM books")?
             .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
             .collect::<rusqlite::Result<_>>()?;
         for (id, author) in authors {
-            conn.execute(
+            c.execute(
                 "UPDATE books SET author_sort = ?2 WHERE id = ?1",
                 params![id, author_sort(&author)],
             )?;
         }
-        conn.pragma_update(None, "user_version", 2)?;
-    }
-    if version < 3 {
-        conn.execute_batch(SCHEMA_V3)?;
-        conn.pragma_update(None, "user_version", 3)?;
-    }
-    if version < 4 {
+        Ok(())
+    })?;
+    step(3, &|c| Ok(c.execute_batch(SCHEMA_V3)?))?;
+    step(4, &|c| {
         // Some files list one author twice ("Cixin Liu" and "Liu, Cixin"); keep one.
-        let books: Vec<(i64, String)> = conn
+        let books: Vec<(i64, String)> = c
             .prepare("SELECT id, author FROM books WHERE author LIKE '% & %'")?
             .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
             .collect::<rusqlite::Result<_>>()?;
         for (id, author) in books {
             let cleaned = dedupe_authors(&author);
             if cleaned != author {
-                conn.execute(
+                c.execute(
                     "UPDATE books SET author = ?2, author_sort = ?3 WHERE id = ?1",
                     params![id, cleaned, author_sort(&cleaned)],
                 )?;
             }
         }
-        conn.pragma_update(None, "user_version", 4)?;
-    }
+        Ok(())
+    })?;
+    step(5, &|c| {
+        // A series number means nothing without a series (calibre writes 1.0 regardless).
+        c.execute(
+            "UPDATE books SET series_index = NULL WHERE series IS NULL OR trim(series) = ''",
+            [],
+        )?;
+        // Goodreads sometimes doubles the spaces in names ("Stephen  King").
+        let wishes: Vec<(i64, String)> = c
+            .prepare("SELECT id, author FROM wishlist WHERE author LIKE '%  %'")?
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
+            .collect::<rusqlite::Result<_>>()?;
+        for (id, author) in wishes {
+            c.execute(
+                "UPDATE wishlist SET author = ?2 WHERE id = ?1",
+                params![id, collapse_spaces(&author)],
+            )?;
+        }
+        Ok(())
+    })?;
     Ok(())
+}
+
+/// "Stephen  King " → "Stephen King".
+pub fn collapse_spaces(text: &str) -> String {
+    text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
 /// The same for "Cixin Liu" and "Liu, Cixin": the name's words, lower-cased and sorted.
@@ -373,7 +402,8 @@ pub fn insert_book(conn: &Connection, b: &NewBook) -> Result<i64> {
             m.title,
             m.author,
             m.series,
-            m.series_index,
+            // A series number means nothing without a series.
+            m.series.as_ref().and(m.series_index),
             m.description,
             b.format,
             b.size_bytes,
@@ -952,6 +982,41 @@ pub fn kv_set<T: Serialize>(conn: &Connection, key: &str, value: &T) -> Result<(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn migrations_tidy_old_data() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(SCHEMA_V1).unwrap();
+        conn.execute_batch(SCHEMA_V2).unwrap();
+        conn.execute_batch(SCHEMA_V3).unwrap();
+        conn.pragma_update(None, "user_version", 4).unwrap();
+        conn.execute(
+            "INSERT INTO books (title, author, series, series_index, format, size_bytes, added_at,
+                                file_path, content_hash)
+             VALUES ('The Stand', 'Stephen King', NULL, 1.0, 'epub', 1, 'now', 'a.epub', 'h')",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO wishlist (catalog_key, title, author, added_at, origin)
+             VALUES ('k', 'Swan Song', 'Robert  McCammon', 'now', 'goodreads')",
+            [],
+        )
+        .unwrap();
+        migrate(&conn).unwrap();
+        let index: Option<f64> = conn
+            .query_row("SELECT series_index FROM books", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(index, None);
+        let author: String = conn
+            .query_row("SELECT author FROM wishlist", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(author, "Robert McCammon");
+        let version: i32 = conn
+            .pragma_query_value(None, "user_version", |r| r.get(0))
+            .unwrap();
+        assert_eq!(version, 5);
+    }
 
     #[test]
     fn drops_repeated_authors() {

@@ -29,17 +29,21 @@ pub struct EpubMeta {
 
 /// Keeps the date part of a dc:date ("2019-03-05T00:00:00Z" → "2019-03-05"), or a bare year.
 pub fn date_part(text: &str) -> Option<String> {
-    let text = text.trim();
-    let date: String = text.chars().take(10).collect();
-    let valid = date.len() >= 4
-        && date[..4].chars().all(|c| c.is_ascii_digit())
-        && !date.starts_with("0101");
+    // Work in characters, not bytes: dates like "Été 2019" or "平成31年" must not panic.
+    let chars: Vec<char> = text.trim().chars().take(10).collect();
+    let year: String = chars.iter().take(4).collect();
+    // calibre stores "0101-01-01" for an unknown date.
+    let valid = year.len() == 4 && year.chars().all(|c| c.is_ascii_digit()) && year != "0101";
     valid.then(|| {
-        if date.len() == 10 && date.as_bytes()[4] == b'-' {
-            date
-        } else {
-            date[..4].to_string()
-        }
+        let full = chars.len() == 10
+            && chars.iter().enumerate().all(|(i, c)| {
+                if i == 4 || i == 7 {
+                    *c == '-'
+                } else {
+                    c.is_ascii_digit()
+                }
+            });
+        if full { chars.iter().collect() } else { year }
     })
 }
 
@@ -91,10 +95,20 @@ pub fn repair_opf(text: &str) -> std::borrow::Cow<'_, str> {
     std::borrow::Cow::Owned(repaired)
 }
 
+/// The most of one file inside an EPUB that Shelf will read into memory.
+const MAX_ENTRY_BYTES: u64 = 256 * 1024 * 1024;
+
 fn read_entry(zip: &mut ZipArchive<File>, name: &str) -> Result<Vec<u8>> {
     let mut entry = zip.by_name(name)?;
-    let mut buf = Vec::with_capacity(entry.size() as usize);
-    entry.read_to_end(&mut buf)?;
+    // The size in the zip header is only a claim; don't trust it for the allocation.
+    let mut buf = Vec::with_capacity(entry.size().min(16 * 1024 * 1024) as usize);
+    entry
+        .by_ref()
+        .take(MAX_ENTRY_BYTES + 1)
+        .read_to_end(&mut buf)?;
+    if buf.len() as u64 > MAX_ENTRY_BYTES {
+        return Err(Error::msg("This book contains a file too large to read."));
+    }
     Ok(buf)
 }
 
@@ -194,7 +208,15 @@ fn image_ext(media_type: &str, href: &str) -> String {
         "image/gif" => "gif".into(),
         "image/webp" => "webp".into(),
         "image/svg+xml" => "svg".into(),
-        _ => href.rsplit('.').next().unwrap_or("jpg").to_lowercase(),
+        // Otherwise the file's own extension, if it looks like one ("Images/cover" doesn't).
+        _ => {
+            let ext = href.rsplit('.').next().unwrap_or_default().to_lowercase();
+            if (1..=5).contains(&ext.len()) && ext.chars().all(|c| c.is_ascii_alphanumeric()) {
+                ext
+            } else {
+                "jpg".into()
+            }
+        }
     }
 }
 
@@ -432,6 +454,27 @@ mod tests {
     use super::*;
     use std::io::Write;
     use zip::write::SimpleFileOptions;
+
+    #[test]
+    fn reads_dates_without_panicking() {
+        assert_eq!(
+            date_part("2019-03-05T00:00:00Z").as_deref(),
+            Some("2019-03-05")
+        );
+        assert_eq!(date_part("2019").as_deref(), Some("2019"));
+        assert_eq!(date_part("2019-3-5").as_deref(), Some("2019"));
+        assert_eq!(date_part("0101-01-01T00:00:00"), None);
+        assert_eq!(date_part("Été 2019"), None);
+        assert_eq!(date_part("平成31年"), None);
+        assert_eq!(date_part("20é9-01-01"), None);
+    }
+
+    #[test]
+    fn cover_extensions_are_sane() {
+        assert_eq!(image_ext("image/jpeg", "x.png"), "jpg");
+        assert_eq!(image_ext("application/octet-stream", "Images/cover"), "jpg");
+        assert_eq!(image_ext("", "images/Cover.PNG"), "png");
+    }
 
     fn make_epub(dir: &Path, opf: &str) -> std::path::PathBuf {
         let path = dir.join("book.epub");

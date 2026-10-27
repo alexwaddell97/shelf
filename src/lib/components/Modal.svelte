@@ -12,13 +12,19 @@
   }
 
   let { labelledby, onclose, maxWidth = '660px', children }: Props = $props();
+
+  // A drag that starts inside the dialog (selecting text) and ends on the backdrop still
+  // fires a click there; only a press that started on the backdrop should close.
+  let pressedScrim = false;
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 <div
   class="scrim"
+  onpointerdown={(e) => (pressedScrim = e.target === e.currentTarget)}
   onclick={(e) => {
-    if (e.target === e.currentTarget) onclose?.();
+    if (pressedScrim && e.target === e.currentTarget) onclose?.();
+    pressedScrim = false;
   }}
 >
   <div
@@ -26,6 +32,7 @@
     role="dialog"
     aria-modal="true"
     aria-labelledby={labelledby}
+    tabindex="-1"
     style:max-width={maxWidth}
     use:trapFocus={onclose}
   >

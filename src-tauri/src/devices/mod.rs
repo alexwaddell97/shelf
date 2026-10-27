@@ -112,6 +112,11 @@ pub fn reconcile(
     mount: &Path,
     readings: &[kobo::Reading],
 ) -> Result<(usize, usize)> {
+    // A device that has just been unplugged (mid-sync, or before the poller noticed) makes
+    // every book look deleted; don't mistake that for the books being removed.
+    if !mount.join(".kobo").join("version").is_file() {
+        return Ok((0, 0));
+    }
     let conn = state.db();
     let books = db::list_books(&conn)?;
     let mut on_device: HashMap<String, i64> = db::device_books(&conn, device_id)?

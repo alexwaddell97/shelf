@@ -138,10 +138,9 @@ fn emit(
 /// Returns the new book's id.
 pub fn import_file(app: &AppHandle, src: &Path) -> Result<i64> {
     let state = app.state::<AppState>();
-    let label = src
-        .file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_default();
+    // The full path, so two files with the same name in different folders stay separate
+    // rows in the import panel (it shows just the file name).
+    let label = src.to_string_lossy().into_owned();
     emit(app, &label, "reading", None, false, None);
 
     match import_into(&state, src, None, &|step| {
@@ -242,6 +241,12 @@ pub fn import_into(
     overrides: Option<&Overrides>,
     step: &dyn Fn(&'static str),
 ) -> Result<(i64, bool)> {
+    // One import at a time: the watcher and a double-click can see the same new file at
+    // once, and both would pass the duplicate check below.
+    let _one_at_a_time = state
+        .import_lock
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     let format = format_of(src).ok_or_else(|| Error::msg("Shelf can't read this kind of file."))?;
     let size = fs::metadata(src)?.len() as i64;
     let hash = hash_file(src)?;
@@ -275,7 +280,7 @@ pub fn import_into(
 
     step("cover");
     let conn = state.db();
-    let id = db::insert_book(
+    let inserted = db::insert_book(
         &conn,
         &NewBook {
             meta: &meta,
@@ -284,11 +289,24 @@ pub fn import_into(
             file_path: &dest.to_string_lossy(),
             content_hash: &hash,
         },
-    )?;
+    );
+    let id = match inserted {
+        Ok(id) => id,
+        Err(err) => {
+            // Don't leave a copied file behind that no book points to.
+            let _ = fs::remove_file(&dest);
+            return Err(err);
+        }
+    };
     if let Some((bytes, ext)) = &file_meta.cover {
-        let cover = state.paths.covers_dir.join(format!("{id}.{ext}"));
-        fs::write(&cover, bytes)?;
-        db::set_cover(&conn, id, &cover.to_string_lossy())?;
+        // A fresh name each time: ids are reused after a delete, and the interface would
+        // otherwise show the deleted book's cached cover.
+        let stamp = chrono::Utc::now().timestamp_millis();
+        let cover = state.paths.covers_dir.join(format!("{id}-{stamp}.{ext}"));
+        // A cover that can't be saved isn't worth failing the whole import over.
+        if fs::write(&cover, bytes).is_ok() {
+            db::set_cover(&conn, id, &cover.to_string_lossy())?;
+        }
     }
 
     step("saving");

@@ -139,8 +139,7 @@ function titleWords(title: string): string[] {
  * first: "Star Wars Inquisitor: Rise of the Red Blade" and "Inquisitor: Rise of the Red
  * Blade". The shorter title needs three words or more (counting a leading "The").
  */
-function endsWithTitle(a: string, b: string): boolean {
-  const [wa, wb] = [titleWords(a), titleWords(b)];
+function endsWithTitle(wa: string[], wb: string[]): boolean {
   const [short, long] = wa.length <= wb.length ? [wa, wb] : [wb, wa];
   if (short.length < 3) return false;
   const tail = ['the', 'a', 'an'].includes(short[0]) ? short.slice(1) : short;
@@ -149,13 +148,58 @@ function endsWithTitle(a: string, b: string): boolean {
   return tail.every((w, i) => w === long[offset + i]);
 }
 
+interface Work {
+  title: string;
+  author: string;
+}
+
+interface Prepared {
+  full: string;
+  main: string;
+  words: string[];
+  last: string;
+}
+
+// Folding text is the slow part, and the same books are compared again and again.
+const prepared = new Map<string, Prepared>();
+
+function prepare(w: Work): Prepared {
+  const key = `${w.title}\u0000${w.author}`;
+  let p = prepared.get(key);
+  if (!p) {
+    if (prepared.size > 20000) prepared.clear();
+    p = { full: letters(withoutArticle(w.title)), main: mainTitle(w.title), words: titleWords(w.title), last: lastName(w.author) };
+    prepared.set(key, p);
+  }
+  return p;
+}
+
 /** True when two title/author pairs are probably the same work (subtitles and accents ignored). */
-export function sameWork(a: { title: string; author: string }, b: { title: string; author: string }): boolean {
-  const ta = letters(withoutArticle(a.title));
-  const tb = letters(withoutArticle(b.title));
-  if (!ta || !tb) return false;
-  const titles = ta === tb || mainTitle(a.title) === mainTitle(b.title) || endsWithTitle(a.title, b.title);
-  const la = lastName(a.author);
-  const lb = lastName(b.author);
-  return titles && (!la || !lb || la === lb);
+export function sameWork(a: Work, b: Work): boolean {
+  const pa = prepare(a);
+  const pb = prepare(b);
+  if (!pa.full || !pb.full) return false;
+  const titles = pa.full === pb.full || pa.main === pb.main || endsWithTitle(pa.words, pb.words);
+  return titles && (!pa.last || !pb.last || pa.last === pb.last);
+}
+
+/**
+ * A fast "which of these books is this work?" lookup for many questions against one list:
+ * only books by the same last name (or with no author) are compared.
+ */
+export function workFinder<T extends Work>(books: T[]): (w: Work) => T | undefined {
+  const byLast = new Map<string, T[]>();
+  for (const b of books) {
+    const last = prepare(b).last;
+    const list = byLast.get(last);
+    if (list) list.push(b);
+    else byLast.set(last, [b]);
+  }
+  const anonymous = byLast.get('') ?? [];
+  return (w) => {
+    const last = prepare(w).last;
+    // No author to go on: any book could match.
+    const pool = last ? [...(byLast.get(last) ?? []), ...anonymous] : books;
+    return pool.find((b) => sameWork(b, w));
+  };
 }

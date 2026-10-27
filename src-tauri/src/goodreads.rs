@@ -137,7 +137,9 @@ fn parse_feed(xml: &str, shelf: Shelf) -> Result<(Option<String>, Vec<Entry>)> {
             Some(Entry {
                 book_id: child_text(item, "book_id")?,
                 title: clean_title(&child_text(item, "title")?),
-                author: child_text(item, "author_name").unwrap_or_else(|| "Unknown author".into()),
+                author: child_text(item, "author_name")
+                    .map(|a| db::collapse_spaces(&a))
+                    .unwrap_or_else(|| "Unknown author".into()),
                 shelf,
                 cover_url: child_text(item, "book_large_image_url")
                     .or_else(|| child_text(item, "book_image_url")),

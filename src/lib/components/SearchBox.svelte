@@ -24,9 +24,13 @@
   let input = $state<HTMLInputElement | null>(null);
 
   // Follow the full search when something else sets or clears it (Back, opening a book).
+  let followed = nav.query;
   $effect(() => {
     const q = nav.query;
-    if (q && q !== text) text = q;
+    if (q !== followed) {
+      followed = q;
+      text = q;
+    }
   });
 
   const words = $derived(tokenize(text));

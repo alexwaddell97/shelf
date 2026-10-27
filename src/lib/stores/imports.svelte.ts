@@ -90,6 +90,12 @@ class ImportsStore {
     if (ids) {
       void library.refresh();
       void wishlist.refresh();
+    } else {
+      // The import stopped part-way: don't leave its rows spinning forever.
+      this.rows = this.rows.map((r) =>
+        isTerminal(r.step) ? r : { ...r, step: 'failed', error: 'The import stopped before this file.' }
+      );
+      this.#scheduleClear();
     }
   }
 

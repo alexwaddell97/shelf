@@ -7,6 +7,9 @@ type TipText = string | null | undefined;
 let bubble: HTMLDivElement | null = null;
 let showTimer: ReturnType<typeof setTimeout> | undefined;
 let owner: HTMLElement | null = null;
+/** The element whose card is about to appear. */
+let pending: HTMLElement | null = null;
+let listening = false;
 
 function getBubble(): HTMLDivElement {
   if (!bubble) {
@@ -46,6 +49,7 @@ function place(el: HTMLDivElement, target: HTMLElement) {
 
 function hide() {
   clearTimeout(showTimer);
+  pending = null;
   owner = null;
   bubble?.classList.remove('shown');
 }
@@ -56,7 +60,9 @@ export function tip(node: HTMLElement, text: TipText) {
   function show(delay: number) {
     clearTimeout(showTimer);
     if (!current) return;
+    pending = node;
     showTimer = setTimeout(() => {
+      pending = null;
       if (!current) return;
       const el = getBubble();
       render(el, current);
@@ -76,7 +82,10 @@ export function tip(node: HTMLElement, text: TipText) {
   node.addEventListener('pointerdown', hide);
   node.addEventListener('focus', focus);
   node.addEventListener('blur', hide);
-  window.addEventListener('scroll', hide, true);
+  if (!listening) {
+    window.addEventListener('scroll', hide, true);
+    listening = true;
+  }
 
   return {
     update(next: TipText) {
@@ -90,13 +99,12 @@ export function tip(node: HTMLElement, text: TipText) {
       }
     },
     destroy() {
-      if (owner === node) hide();
+      if (owner === node || pending === node) hide();
       node.removeEventListener('pointerenter', enter);
       node.removeEventListener('pointerleave', hide);
       node.removeEventListener('pointerdown', hide);
       node.removeEventListener('focus', focus);
       node.removeEventListener('blur', hide);
-      window.removeEventListener('scroll', hide, true);
     }
   };
 }

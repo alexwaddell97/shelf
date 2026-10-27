@@ -113,7 +113,7 @@
     {onkeydown}
   >
     <div class="heading" aria-hidden="true">{menu.book.title}</div>
-    {#each items as item (item.label)}
+    {#each items as item, i (i)}
       {#if item.divider}<div class="divider" role="separator"></div>{/if}
       <button role="menuitem" class:destructive={item.destructive} onclick={() => choose(item)}>{item.label}</button>
     {/each}

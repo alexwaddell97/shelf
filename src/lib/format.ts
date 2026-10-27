@@ -161,6 +161,24 @@ function personKey(name: string): string {
     .join(' ');
 }
 
+// Three-letter codes some files use, mapped to the two-letter ones Intl knows.
+const LANGUAGE_CODES: Record<string, string> = {
+  eng: 'en', fra: 'fr', fre: 'fr', deu: 'de', ger: 'de', nld: 'nl', dut: 'nl', spa: 'es', ita: 'it',
+  por: 'pt', rus: 'ru', jpn: 'ja', zho: 'zh', chi: 'zh', swe: 'sv', nor: 'no', dan: 'da', fin: 'fi', pol: 'pl'
+};
+
+/** "eng" or "en-US" → "English"; null for "und" (undetermined) or nothing. */
+export function languageName(code: string | null | undefined): string | null {
+  const raw = code?.trim();
+  if (!raw || raw.toLowerCase() === 'und') return null;
+  const tag = LANGUAGE_CODES[raw.toLowerCase()] ?? raw;
+  try {
+    return new Intl.DisplayNames(['en'], { type: 'language' }).of(tag) ?? raw;
+  } catch {
+    return raw;
+  }
+}
+
 /** Sort key for an author: the calibre sort name, or the name itself. */
 export function authorSortKey(b: Pick<Book, 'author' | 'authorSort'>): string {
   return (b.authorSort?.trim() || b.author).toLowerCase();

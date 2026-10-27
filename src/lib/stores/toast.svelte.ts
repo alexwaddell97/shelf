@@ -37,8 +37,8 @@ class ToastStore {
     return id;
   }
 
-  info(text: string, detail?: string) {
-    return this.push('info', text, detail);
+  info(text: string, detail?: string, action?: ToastAction) {
+    return this.push('info', text, detail, action);
   }
   success(text: string, detail?: string, action?: ToastAction) {
     return this.push('success', text, detail, action);

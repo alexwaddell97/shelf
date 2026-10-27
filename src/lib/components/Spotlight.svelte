@@ -196,7 +196,17 @@
 
 {#if spotlight.open}
   <div class="scrim" role="presentation" onpointerdown={close}></div>
-  <div class="spotlight" role="dialog" aria-modal="true" aria-label="Spotlight search">
+  <!-- Keep focus in the field (and so the keyboard working) when clicking non-controls. -->
+  <div
+    class="spotlight"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Spotlight search"
+    tabindex="-1"
+    onpointerdown={(e) => {
+      if (!(e.target as HTMLElement).closest('input, button, a')) e.preventDefault();
+    }}
+  >
     <div class="spot-field">
       <Icon name="search" size={20} />
       <input

@@ -96,12 +96,17 @@ pub fn list_devices(state: State<'_, AppState>) -> Result<Vec<Device>> {
     devices::list(&state)
 }
 
+/// Probes drive letters and may read the device's database over USB, so it runs off the
+/// main thread (a slow drive would otherwise freeze the window).
 #[tauri::command]
-pub fn refresh_devices(app: AppHandle, state: State<'_, AppState>) -> Result<Vec<Device>> {
-    if devices::refresh(&app) {
-        let _ = app.emit("devices-changed", ());
-    }
-    devices::list(&state)
+pub async fn refresh_devices(app: AppHandle) -> Result<Vec<Device>> {
+    blocking(move || {
+        if devices::refresh(&app) {
+            let _ = app.emit("devices-changed", ());
+        }
+        devices::list(&app.state::<AppState>())
+    })
+    .await
 }
 
 #[tauri::command]
@@ -166,20 +171,21 @@ pub async fn sync_device(app: AppHandle, device_id: String) -> Result<SyncReport
 }
 
 #[tauri::command]
-pub fn remove_from_device(
-    app: AppHandle,
-    state: State<'_, AppState>,
-    device_id: String,
-    book_id: i64,
-) -> Result<()> {
-    let mount = mount_of(&state, &device_id)?;
-    let conn = state.db();
-    if let Some(rel) = db::device_book_path(&conn, &device_id, book_id)? {
-        kobo::remove_book(&mount, &rel)?;
-    }
-    db::device_book_remove(&conn, &device_id, book_id)?;
-    let _ = app.emit("library-changed", ());
-    Ok(())
+pub async fn remove_from_device(app: AppHandle, device_id: String, book_id: i64) -> Result<()> {
+    blocking(move || {
+        let state = app.state::<AppState>();
+        let mount = mount_of(&state, &device_id)?;
+        {
+            let conn = state.db();
+            if let Some(rel) = db::device_book_path(&conn, &device_id, book_id)? {
+                kobo::remove_book(&mount, &rel)?;
+            }
+            db::device_book_remove(&conn, &device_id, book_id)?;
+        }
+        let _ = app.emit("library-changed", ());
+        Ok(())
+    })
+    .await
 }
 
 #[tauri::command]

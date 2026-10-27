@@ -25,6 +25,8 @@ pub struct AppState {
     pub watcher: Mutex<Option<notify::RecommendedWatcher>>,
     /// A book opened from the file manager, waiting for the interface to show it.
     pub pending_open: Mutex<Option<i64>>,
+    /// Held for the whole of each import (see `library::import_into`).
+    pub import_lock: Mutex<()>,
 }
 
 impl AppState {
@@ -64,6 +66,7 @@ impl AppState {
             connected: Mutex::new(HashMap::new()),
             watcher: Mutex::new(None),
             pending_open: Mutex::new(None),
+            import_lock: Mutex::new(()),
         })
     }
 
@@ -80,8 +83,17 @@ impl AppState {
     }
 
     pub fn settings(&self) -> Result<Settings> {
-        let conn = self.db();
-        Ok(db::kv_get(&conn, "settings")?.unwrap_or_else(|| self.default_settings()))
+        let stored: Option<serde_json::Value> = db::kv_get(&self.db(), "settings")?;
+        let Some(stored) = stored else {
+            return Ok(self.default_settings());
+        };
+        // Saved settings are laid over the defaults, so a setting added in a later version
+        // (missing from what's stored) never stops Shelf loading the rest.
+        let mut merged = serde_json::to_value(self.default_settings())?;
+        if let (Some(base), serde_json::Value::Object(saved)) = (merged.as_object_mut(), stored) {
+            base.extend(saved);
+        }
+        Ok(serde_json::from_value(merged).unwrap_or_else(|_| self.default_settings()))
     }
 
     pub fn save_settings(&self, settings: &Settings) -> Result<()> {

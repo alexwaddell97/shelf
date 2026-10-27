@@ -33,11 +33,9 @@
     <div class="head">
       <span class="title">{title}</span>
       <span class="summary">{summary}</span>
-      {#if imports.active === 0}
-        <button class="icon-btn bare close" aria-label="Close import panel" onclick={() => imports.dismiss()}>
-          <Icon name="close" size={16} />
-        </button>
-      {/if}
+      <button class="icon-btn bare close" aria-label="Close import panel" onclick={() => imports.dismiss()}>
+        <Icon name="close" size={16} />
+      </button>
     </div>
 
     <ul>

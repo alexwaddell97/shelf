@@ -193,6 +193,14 @@
   }
 
   const close = () => (nav.editing = false);
+  // Escape and backdrop clicks are easy to do by accident, so they never throw away edits.
+  function dismiss() {
+    if (!dirty) return close();
+    toasts.info('You have unsaved changes', 'Save them, or discard them to close.', {
+      label: 'Discard',
+      run: close
+    });
+  }
 
   async function saveAndClose() {
     if (await save()) close();
@@ -258,7 +266,7 @@
 </script>
 
 {#if book && form}
-  <Modal labelledby="editor-h" maxWidth="1000px" onclose={close}>
+  <Modal labelledby="editor-h" maxWidth="1000px" onclose={dismiss}>
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div class="editor" onkeydown={onKey}>
       <header>

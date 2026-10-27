@@ -3,7 +3,7 @@
   import Icon from '$lib/components/Icon.svelte';
   import { wishToCatalog } from '$lib/format';
   import type { Book } from '$lib/api';
-  import { sameWork } from '$lib/search';
+  import { workFinder } from '$lib/search';
   import { library } from '$lib/stores/library.svelte';
   import { nav } from '$lib/stores/nav.svelte';
   import { toasts } from '$lib/stores/toast.svelte';
@@ -12,9 +12,10 @@
   // Wishes are matched to the library when a book is imported. Books added before a match
   // was possible (or under a slightly different title) are caught here instead.
   const owned = $derived.by(() => {
+    const find = workFinder(library.books);
     const found = new Map<number, Book>();
     for (const item of wishlist.items) {
-      const book = library.books.find((b) => sameWork(b, item));
+      const book = find(item);
       if (book) found.set(item.id, book);
     }
     return found;

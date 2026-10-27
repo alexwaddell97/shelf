@@ -189,6 +189,7 @@
       return;
     }
     if ((e.target as HTMLElement | null)?.closest?.('input, select, textarea')) return;
+    if (e.key === ' ' && (e.target as HTMLElement | null)?.closest?.('button')) return;
     if (e.key === 'ArrowRight' || e.key === 'PageDown' || (e.key === ' ' && !e.shiftKey)) {
       e.preventDefault();
       if (e.key === 'ArrowRight') void view?.goRight();

@@ -19,7 +19,7 @@
 
   const sync = $derived(devices.bookSync(book));
   const onDevice = $derived(book.onDevices.length > 0);
-  const isNew = $derived(detailed && library.fresh.includes(book.id));
+  const isNew = $derived(detailed && library.fresh.has(book.id));
   // Where the book is, then how far through it you are: "On Kobo · 42% read".
   const where = $derived(
     sync.state === 'synced' ? `On ${(devices.name(book.onDevices[0]) ?? 'device').split(' ')[0]}` : sync.label

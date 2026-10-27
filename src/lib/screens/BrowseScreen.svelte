@@ -31,16 +31,23 @@
     }
     return [...map.values()].sort((a, b) => a.key.localeCompare(b.key));
   });
+  // Letters that don't decompose into a base letter plus an accent.
+  const BASE_LETTER: Record<string, string> = { Æ: 'A', Ø: 'O', Œ: 'O', Ł: 'L', Đ: 'D', Ð: 'D', Þ: 'T', ß: 'S' };
+  const indexLetter = (name: string) => {
+    const ch = name.normalize('NFD').replace(/\p{M}/gu, '').charAt(0).toUpperCase();
+    const base = BASE_LETTER[ch] ?? ch;
+    return /\p{L}/u.test(base) ? base : '#';
+  };
+  // One group per letter (keys must be unique), in the order the sorted authors reach them.
   const authorGroups = $derived.by(() => {
-    const groups: { letter: string; items: typeof authors }[] = [];
+    const groups = new Map<string, { letter: string; items: typeof authors }>();
     for (const a of authors) {
-      const ch = a.key.charAt(0).toUpperCase();
-      const letter = /\p{L}/u.test(ch) ? ch : '#';
-      const last = groups[groups.length - 1];
-      if (last && last.letter === letter) last.items.push(a);
-      else groups.push({ letter, items: [a] });
+      const letter = indexLetter(a.key);
+      const group = groups.get(letter);
+      if (group) group.items.push(a);
+      else groups.set(letter, { letter, items: [a] });
     }
-    return groups;
+    return [...groups.values()];
   });
 
   // ---- Series ----

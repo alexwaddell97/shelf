@@ -1,7 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import type { Book } from '$lib/api';
-  import { formatBytes, formatDate, seriesLabel, statusLabel } from '$lib/format';
+  import { formatBytes, formatDate, languageName, seriesLabel, statusLabel } from '$lib/format';
   import { bookActions } from '$lib/stores/bookActions.svelte';
   import { devices } from '$lib/stores/devices.svelte';
   import ClampText from './ClampText.svelte';
@@ -165,7 +165,7 @@
         <div><dt>Added</dt><dd>{formatDate(book.addedAt)}</dd></div>
         {#if book.published}<div><dt>Published</dt><dd>{book.published}</dd></div>{/if}
         {#if book.publisher}<div><dt>Publisher</dt><dd>{book.publisher}</dd></div>{/if}
-        {#if book.language}<div><dt>Language</dt><dd>{book.language}</dd></div>{/if}
+        {#if languageName(book.language)}<div><dt>Language</dt><dd>{languageName(book.language)}</dd></div>{/if}
         {#if book.isbn}<div><dt>ISBN</dt><dd class="mono">{book.isbn}</dd></div>{/if}
       </dl>
 

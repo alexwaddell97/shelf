@@ -17,7 +17,7 @@
   import Icon from '$lib/components/Icon.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import Stars from '$lib/components/Stars.svelte';
-  import { authorEntries, formatBytes, formatDate, formatIndex, relativeDate, statusLabel } from '$lib/format';
+  import { authorEntries, formatBytes, formatDate, formatIndex, languageName, relativeDate, statusLabel } from '$lib/format';
   import { devices } from '$lib/stores/devices.svelte';
   import { labels } from '$lib/stores/labels.svelte';
   import { library } from '$lib/stores/library.svelte';
@@ -327,7 +327,7 @@
           <div><dt>Status</dt><dd>{statusLabel(book)}</dd></div>
           {#if book.publisher}<div><dt>Publisher</dt><dd>{book.publisher}</dd></div>{/if}
           {#if book.published}<div><dt>Published</dt><dd>{book.published}</dd></div>{/if}
-          {#if book.language}<div><dt>Language</dt><dd>{book.language}</dd></div>{/if}
+          {#if languageName(book.language)}<div><dt>Language</dt><dd>{languageName(book.language)}</dd></div>{/if}
           {#if book.isbn}<div><dt>ISBN</dt><dd class="mono">{book.isbn}</dd></div>{/if}
         </dl>
       </div>

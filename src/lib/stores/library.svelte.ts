@@ -89,9 +89,8 @@ class LibraryStore {
   sort = $state<LibrarySort>(loadSort());
   view = $state<LibraryView>(loadView());
   /** Ids that showed up after the first load, so the grid can mark them "New". */
-  fresh = $state<number[]>([]);
+  fresh = $state<Set<number>>(new Set());
 
-  #seq = 0;
 
   setView(view: LibraryView) {
     this.view = view;
@@ -111,14 +110,41 @@ class LibraryStore {
     }
   }
 
-  async refresh() {
-    const seq = ++this.#seq;
+  #loading: Promise<void> | null = null;
+  #queued: Promise<void> | null = null;
+  /** Bumped by local edits, so a load that started before one isn't applied over it. */
+  #edits = 0;
+
+  /**
+   * Reloads the library. Calls while a load is running share one follow-up load, so a
+   * batch of imports doesn't fire a load per file, and awaiting always means "a load that
+   * started after I asked has finished".
+   */
+  refresh(): Promise<void> {
+    if (!this.#loading) {
+      this.#loading = this.#load().finally(() => (this.#loading = null));
+      return this.#loading;
+    }
+    this.#queued ??= this.#loading.then(() => {
+      this.#queued = null;
+      return this.refresh();
+    });
+    return this.#queued;
+  }
+
+  async #load() {
+    const edits = this.#edits;
     const books = await attempt('Could not load your library', listBooks);
-    if (!books || seq !== this.#seq) return;
+    if (!books) return;
+    if (edits !== this.#edits) {
+      // Edited while loading: this list may be older than the edit, so load again.
+      void this.refresh();
+      return;
+    }
     if (this.loaded) {
       const known = new Set(this.books.map((b) => b.id));
       const added = books.filter((b) => !known.has(b.id)).map((b) => b.id);
-      if (added.length) this.fresh = [...this.fresh, ...added];
+      if (added.length) this.fresh = new Set([...this.fresh, ...added]);
     }
     this.books = books;
     this.loaded = true;
@@ -130,6 +156,7 @@ class LibraryStore {
   }
 
   upsert(book: Book) {
+    this.#edits++;
     const i = this.books.findIndex((b) => b.id === book.id);
     this.books = i === -1 ? [book, ...this.books] : this.books.map((b) => (b.id === book.id ? book : b));
   }

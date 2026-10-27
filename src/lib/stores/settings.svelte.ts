@@ -31,16 +31,19 @@ class SettingsStore {
 
   /** Optimistically applies a partial change and rolls back if the backend refuses it. */
   async save(patch: Partial<Settings>): Promise<boolean> {
-    const prev = this.value;
-    if (!prev) return false;
-    const next = { ...prev, ...patch };
-    this.value = next;
-    const ok = await attempt('Could not save your settings', async () => {
-      await saveSettings($state.snapshot(next) as Settings);
-      return true;
-    });
+    const current = this.value;
+    if (!current) return false;
+    const prev = Object.fromEntries(Object.keys(patch).map((k) => [k, current[k as keyof Settings]]));
+    this.value = { ...current, ...patch };
+    // Each save writes the latest settings, in order, so quick changes can't overtake each other.
+    const ok = await this.#inOrder(() =>
+      attempt('Could not save your settings', async () => {
+        await saveSettings($state.snapshot(this.value) as Settings);
+        return true;
+      })
+    );
     if (!ok) {
-      this.value = prev;
+      if (this.value) this.value = { ...this.value, ...prev };
       return false;
     }
     return true;
@@ -49,15 +52,26 @@ class SettingsStore {
   async saveSources(next: Source[]): Promise<boolean> {
     const prev = this.sources;
     this.sources = next;
-    const ok = await attempt('Could not save your sources', async () => {
-      await saveSources($state.snapshot(next) as Source[]);
-      return true;
-    });
+    const ok = await this.#inOrder(() =>
+      attempt('Could not save your sources', async () => {
+        await saveSources($state.snapshot(this.sources) as Source[]);
+        return true;
+      })
+    );
     if (!ok) {
-      this.sources = prev;
+      // Roll back only if nothing newer has replaced this change.
+      if (this.sources === next) this.sources = prev;
       return false;
     }
     return true;
+  }
+
+  #chain: Promise<unknown> = Promise.resolve();
+
+  #inOrder<T>(job: () => Promise<T>): Promise<T> {
+    const run = this.#chain.then(job, job);
+    this.#chain = run.catch(() => undefined);
+    return run;
   }
 
   enabledSources(kind: Source['kind']): Source[] {

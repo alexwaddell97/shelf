@@ -4,7 +4,7 @@ A fast, modern ebook library for your computer that keeps your e-reader in sync.
 
 Drop in your EPUBs, and Shelf reads their covers and details, files them neatly, converts them for your device and copies them over. When you plug your e-reader back in, your reading progress comes back. Free, open source and local: your library never leaves your computer.
 
-> **Status: early development (v0.1).** The Kobo driver is the first one; other e-readers are on the roadmap. Expect rough edges, and please report them.
+> **Status: early development (v0.1).** The Kobo driver is the first one; other e-readers are on the [roadmap](ROADMAP.md). Expect rough edges, and please report them.
 
 ## Features
 

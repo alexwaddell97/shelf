@@ -50,10 +50,27 @@ fn model_name(code: &str) -> Option<&'static str> {
     }
 }
 
-/// The device-relative path for a book, with forward slashes.
-fn device_rel_path(book: &Book, ext: &str) -> String {
+/// A device-relative path (forward slashes) for a book that no other file is using:
+/// "Author - Title.kepub.epub", then "Author - Title (2).kepub.epub" and so on, so two
+/// editions of one book never overwrite each other.
+fn free_rel_path(mount: &Path, book: &Book, ext: &str) -> String {
     let stem = sanitize(&format!("{} - {}", book.author, book.title));
-    format!("{BOOKS_DIR}/{stem}.{ext}")
+    let mut rel = format!("{BOOKS_DIR}/{stem}.{ext}");
+    let mut n = 2;
+    while mount.join(&rel).exists() {
+        rel = format!("{BOOKS_DIR}/{stem} ({n}).{ext}");
+        n += 1;
+    }
+    rel
+}
+
+/// Deletes a temporary folder when it goes out of scope, however the function returns.
+struct RemoveDirOnDrop(PathBuf);
+
+impl Drop for RemoveDirOnDrop {
+    fn drop(&mut self) {
+        let _ = fs::remove_dir_all(&self.0);
+    }
 }
 
 /// Copies a book onto the device, with Shelf's metadata and cover written into the copy,
@@ -105,20 +122,33 @@ pub fn send_book(
         format => format.to_string(),
     };
 
+    // ".epub" must not match a ".kepub.epub" path, or a plain EPUB would land where the
+    // Kobo expects a kepub.
+    let same_format = |old: &str| {
+        old.ends_with(&format!(".{ext}")) && (ext == "kepub.epub" || !old.ends_with(".kepub.epub"))
+    };
     let rel = match existing {
-        Some(old) if old.ends_with(&format!(".{ext}")) => old.to_string(),
+        Some(old) if same_format(old) => old.to_string(),
         Some(old) => {
             // Sent before in a different format: replace it.
             remove_book(mount, old)?;
-            device_rel_path(book, &ext)
+            free_rel_path(mount, book, &ext)
         }
-        None => device_rel_path(book, &ext),
+        None => free_rel_path(mount, book, &ext),
     };
     let dest = mount.join(&rel);
     if let Some(parent) = dest.parent() {
         fs::create_dir_all(parent)?;
     }
-    let copied = fs::copy(&file, &dest);
+    // Copy beside the old file and then swap it in, so a full device or an unplug part-way
+    // through leaves the old copy intact.
+    let mut part = dest.clone().into_os_string();
+    part.push(".part");
+    let part = PathBuf::from(part);
+    let copied = fs::copy(&file, &part).and_then(|_| fs::rename(&part, &dest));
+    if copied.is_err() {
+        let _ = fs::remove_file(&part);
+    }
     for temp in temps {
         let _ = fs::remove_file(temp);
     }
@@ -156,11 +186,21 @@ pub fn read_progress(
     if !db_path.is_file() {
         return Ok(Vec::new());
     }
-    let copy = work_dir.join("KoboReader.sqlite");
+    // A folder of its own for each read, so two reads at once (a sync and a reconnect)
+    // can't mix up each other's copies, and a stale -wal is never applied to a newer copy.
+    static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let dir = work_dir.join(format!(
+        "kobo-read-{}-{}",
+        std::process::id(),
+        NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+    ));
+    fs::create_dir_all(&dir)?;
+    let _cleanup = RemoveDirOnDrop(dir.clone());
+    let copy = dir.join("KoboReader.sqlite");
     fs::copy(&db_path, &copy)?;
     let wal = mount.join(".kobo").join("KoboReader.sqlite-wal");
     if wal.is_file() {
-        fs::copy(&wal, work_dir.join("KoboReader.sqlite-wal"))?;
+        fs::copy(&wal, dir.join("KoboReader.sqlite-wal"))?;
     }
     if let Some(dir) = backup_to {
         fs::create_dir_all(dir)?;
@@ -186,10 +226,6 @@ pub fn read_progress(
         })
     })?;
     let readings = rows.collect::<rusqlite::Result<Vec<_>>>()?;
-    drop(stmt);
-    drop(conn);
-    let _ = fs::remove_file(&copy);
-    let _ = fs::remove_file(work_dir.join("KoboReader.sqlite-wal"));
     Ok(readings)
 }
 
@@ -220,6 +256,46 @@ mod tests {
         let found = detect(dir.path()).unwrap();
         assert_eq!(found.id, "kobo-N4181C1234567");
         assert_eq!(found.name, "Kobo Libra 2");
+    }
+
+    #[test]
+    fn sends_without_clobbering_other_files() {
+        let mount = tempfile::tempdir().unwrap();
+        let work = tempfile::tempdir().unwrap();
+        let file = work.path().join("dune.epub");
+        crate::epub::write_test_epub(&file, "Dune", "Frank Herbert");
+        let book = |id| Book {
+            id,
+            title: "Dune".into(),
+            author: "Frank Herbert".into(),
+            format: "epub".into(),
+            file_path: file.to_string_lossy().into(),
+            ..Default::default()
+        };
+        // Two editions of one book get a file each.
+        let first = send_book(mount.path(), &book(1), None, false, work.path()).unwrap();
+        let second = send_book(mount.path(), &book(2), None, false, work.path()).unwrap();
+        assert_ne!(first, second);
+        assert!(
+            second.ends_with("Frank Herbert - Dune (2).epub"),
+            "{second}"
+        );
+        // A plain EPUB never overwrites a kepub path; the old kepub is replaced instead.
+        let kepub = "Shelf/Frank Herbert - Dune.kepub.epub";
+        fs::write(mount.path().join(kepub), b"old").unwrap();
+        let resent = send_book(mount.path(), &book(1), Some(kepub), false, work.path()).unwrap();
+        assert!(
+            resent.ends_with(".epub") && !resent.ends_with(".kepub.epub"),
+            "{resent}"
+        );
+        assert!(!mount.path().join(kepub).exists());
+        // No half-written copies are left behind.
+        let leftovers: Vec<_> = fs::read_dir(mount.path().join("Shelf"))
+            .unwrap()
+            .flatten()
+            .filter(|e| e.file_name().to_string_lossy().ends_with(".part"))
+            .collect();
+        assert!(leftovers.is_empty());
     }
 
     #[test]
