@@ -83,7 +83,8 @@
 
 <style>
   /* A toolbar that sits flat on the page, like a Mac app's. When the page scrolls under
-     it, it turns into a strip of frosted glass with a hairline beneath. */
+     it, the content blurs and fades away beneath it (Apple's "scroll edge"), rather than
+     meeting a hard-edged strip. */
   header {
     position: sticky;
     top: 0;
@@ -94,14 +95,26 @@
     gap: 10px;
     padding: var(--float-gap) var(--pad-x) 12px;
     background: transparent;
-    transition:
-      background var(--dur) var(--ease),
-      box-shadow var(--dur) var(--ease);
   }
-  header.scrolled {
-    background: var(--glass-thick);
-    backdrop-filter: var(--glass-filter);
-    box-shadow: 0 0.5px 0 var(--border);
+  header::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 -18px;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0;
+    background: linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--bg) 82%, transparent) 0%,
+      color-mix(in srgb, var(--bg) 70%, transparent) 60%,
+      transparent 100%
+    );
+    backdrop-filter: blur(14px) saturate(1.5);
+    mask-image: linear-gradient(to bottom, #000 62%, transparent 100%);
+    transition: opacity var(--dur) var(--ease);
+  }
+  header.scrolled::before {
+    opacity: 1;
   }
   .add {
     padding: 0 18px;

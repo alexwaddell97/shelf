@@ -109,6 +109,32 @@
   let menuOpen = $state(false);
   let width = $state(0);
 
+  // Once the heading row pins under the top bar it turns to the same glass, square-cornered,
+  // so the two read as one strip with the rows scrolling beneath.
+  // Rows that scroll past it are clipped at its bottom edge, as in a real table, instead
+  // of showing again above it under the top bar.
+  let headEl = $state<HTMLDivElement | null>(null);
+  let stuck = $state(false);
+  let clipTop = $state(0);
+  $effect(() => {
+    const el = headEl;
+    const list = listEl;
+    if (!el || !list) return;
+    const check = () => {
+      const top = parseFloat(getComputedStyle(el).top) || 0;
+      const head = el.getBoundingClientRect();
+      stuck = window.scrollY > 0 && head.top <= top + 0.5;
+      clipTop = stuck ? Math.max(0, Math.round(head.bottom - list.getBoundingClientRect().top)) : 0;
+    };
+    check();
+    window.addEventListener('scroll', check, { passive: true });
+    window.addEventListener('resize', check);
+    return () => {
+      window.removeEventListener('scroll', check);
+      window.removeEventListener('resize', check);
+    };
+  });
+
   // The chosen columns that fit, dropping the least important first when the list is narrow.
   const shown = $derived.by(() => {
     const picked = COLUMNS.filter((c) => chosen.includes(c.id));
@@ -236,7 +262,15 @@
 
 <div class="layout">
   <div class="table" class:compact bind:clientWidth={width}>
-    <div class="row head" style:grid-template-columns={tracks} role="group" aria-label="Sort by" oncontextmenu={headerMenu}>
+    <div
+      class="row head"
+      class:stuck
+      style:grid-template-columns={tracks}
+      role="group"
+      aria-label="Sort by"
+      bind:this={headEl}
+      oncontextmenu={headerMenu}
+    >
       {#if !compact}<span></span>{/if}
       <span class="head-name">
         {@render sorter('Title', 'title')}
@@ -283,6 +317,7 @@
       tabindex="0"
       aria-label="Books"
       aria-activedescendant={selected ? `book-row-${selected.id}` : undefined}
+      style:clip-path={clipTop ? `inset(${clipTop}px 0 0 0 round 0 0 20px 20px)` : undefined}
       bind:this={listEl}
       {onkeydown}
     >
@@ -506,6 +541,13 @@
     border-radius: 20px 20px 0 0;
     background: var(--surface-raised);
     border-bottom: 1px solid var(--border-soft);
+    transition:
+      border-radius var(--dur) var(--ease),
+      background var(--dur) var(--ease);
+  }
+  .row.head.stuck {
+    border-radius: 0;
+    box-shadow: 0 6px 12px -10px rgba(60, 40, 10, 0.25);
   }
   .row.head > span {
     display: flex;
