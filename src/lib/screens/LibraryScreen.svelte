@@ -6,7 +6,7 @@
   import type { Book } from '$lib/api';
   import { plural } from '$lib/format';
   import { imports } from '$lib/stores/imports.svelte';
-  import { library, SORT_OPTIONS, type LibraryFilter, type LibrarySort, type LibraryView } from '$lib/stores/library.svelte';
+  import { isAscending, library, SORT_OPTIONS, type LibraryFilter, type LibrarySort, type LibraryView } from '$lib/stores/library.svelte';
   import { browseKindOf, nav } from '$lib/stores/nav.svelte';
 
   const FILTERS: [LibraryFilter, string][] = [
@@ -22,16 +22,24 @@
 
   const scope = $derived(nav.view.name === 'library' ? nav.view.scope : undefined);
 
+  interface Order {
+    sort: LibrarySort;
+    reversed: boolean;
+  }
+
   // Inside a series or an author's books the natural order is by series position.
-  let override = $state<LibrarySort | null>(null);
+  let override = $state<Order | null>(null);
   $effect(() => {
     scope;
     override = null;
   });
-  const scopeDefault = $derived<LibrarySort | null>(scope && (scope.kind === 'series' || scope.kind === 'author') ? 'series' : null);
-  const sort = $derived(override ?? scopeDefault ?? library.sort);
+  const scopeDefault = $derived<Order | null>(
+    scope && (scope.kind === 'series' || scope.kind === 'author') ? { sort: 'series', reversed: false } : null
+  );
+  const order = $derived<Order>(override ?? scopeDefault ?? { sort: library.sort, reversed: library.reversed });
+  const ascending = $derived(isAscending(order.sort, order.reversed));
 
-  const visible = $derived(library.list(scope, sort));
+  const visible = $derived(library.list(scope, order.sort, order.reversed));
   const siblings = $derived(visible.map((b) => b.id));
 
   const VIEWS: [LibraryView, string, 'library' | 'grid' | 'list'][] = [
@@ -42,10 +50,13 @@
 
   const open = (book: Book) => nav.openBook(book.id, scope ? { kind: 'scope', scope } : { kind: 'library' }, siblings);
 
-  function pickSort(value: LibrarySort) {
-    if (scope) override = value;
-    else library.setSort(value);
+  function pickSort(sort: LibrarySort, reversed = false) {
+    if (scope) override = { sort, reversed };
+    else library.setSort(sort, reversed);
   }
+
+  /** A column heading was clicked: sort by it, or flip it if it's already the sort. */
+  const sortBy = (sort: LibrarySort) => pickSort(sort, sort === order.sort ? !order.reversed : false);
 </script>
 
 <section aria-labelledby="lib-h">
@@ -100,11 +111,20 @@
         </div>
       <div class="sort">
         <label for="shelf-sort">Sort</label>
-        <select id="shelf-sort" class="input" value={sort} onchange={(e) => pickSort(e.currentTarget.value as LibrarySort)}>
+        <select id="shelf-sort" class="input" value={order.sort} onchange={(e) => pickSort(e.currentTarget.value as LibrarySort)}>
           {#each SORT_OPTIONS as [value, label] (value)}
             <option {value}>{label}</option>
           {/each}
         </select>
+        <button
+          class="direction"
+          class:down={!ascending}
+          aria-label={ascending ? 'Ascending: click to reverse' : 'Descending: click to reverse'}
+          title={ascending ? 'Ascending' : 'Descending'}
+          onclick={() => pickSort(order.sort, !order.reversed)}
+        >
+          <Icon name="up" size={16} />
+        </button>
       </div>
       </div>
     </div>
@@ -125,7 +145,7 @@
       {#if library.view === 'shelf'}
         <ShelfView books={visible} onopen={open} />
       {:else if library.view === 'list'}
-        <ListView books={visible} onopen={open} />
+        <ListView books={visible} onopen={open} sort={order.sort} {ascending} onsort={sortBy} />
       {:else}
         <div class="book-grid">
           {#each visible as book (book.id)}
@@ -214,6 +234,26 @@
     width: auto;
     background: var(--surface);
     border-color: var(--border);
+  }
+  .direction {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    margin-left: -4px;
+    border: 1px solid var(--border);
+    border-radius: var(--r2);
+    background: var(--surface);
+    color: var(--muted);
+  }
+  .direction:hover {
+    color: var(--text);
+  }
+  .direction :global(svg) {
+    transition: transform var(--dur) var(--ease);
+  }
+  .direction.down :global(svg) {
+    transform: rotate(180deg);
   }
   .chips {
     display: flex;

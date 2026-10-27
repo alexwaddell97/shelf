@@ -27,6 +27,8 @@
     layers: ['M12 3l9 5-9 5-9-5z', 'M3 13l9 5 9-5'],
     tag: ['M3 12V4h8l10 10-8 8z', 'M7.5 8.5h.01'],
     chevron: ['M9 6l6 6-6 6'],
+    up: ['M12 19V5M6 11l6-6 6 6'],
+    columns: ['M4 5h16v14H4z', 'M10 5v14M15 5v14'],
     book: ['M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z', 'M5 19.5A1.5 1.5 0 0 0 6.5 21H19v-3']
   } satisfies Record<string, string[]>;
 

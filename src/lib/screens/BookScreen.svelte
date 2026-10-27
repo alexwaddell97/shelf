@@ -23,6 +23,7 @@
   import { library } from '$lib/stores/library.svelte';
   import { authorScope, collectionScope, nav, seriesScope, tagScope, type Back } from '$lib/stores/nav.svelte';
   import { attempt, toasts } from '$lib/stores/toast.svelte';
+  import { popover } from '$lib/popover';
 
   let { id, back }: { id: number; back: Back } = $props();
 
@@ -41,28 +42,6 @@
     confirmDelete = false;
     collOpen = false;
   });
-
-  /** Closes a popover on Escape or a click outside it. */
-  function popover(node: HTMLElement, close: () => void) {
-    const onDown = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (!node.contains(t) && !node.parentElement?.contains(t)) close();
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        close();
-      }
-    };
-    document.addEventListener('mousedown', onDown);
-    node.addEventListener('keydown', onKey);
-    return {
-      destroy() {
-        document.removeEventListener('mousedown', onDown);
-        node.removeEventListener('keydown', onKey);
-      }
-    };
-  }
 
   async function toggleCollection(labelId: number, inIt: boolean) {
     await run('Could not change the collection', () => labelBooks(labelId, [id], !inIt));

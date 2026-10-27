@@ -1,19 +1,79 @@
 import { listBooks, type Book, type ReadStatus } from '$lib/api';
-import { authorEntries, authorSortKey, sortTitle } from '$lib/format';
+import { authorEntries, authorSortKey, languageName, sortTitle } from '$lib/format';
 import { labels } from './labels.svelte';
 import { attempt } from './toast.svelte';
 
 export type LibraryFilter = 'all' | ReadStatus | 'on-device' | 'not-on-device';
-export type LibrarySort = 'recent' | 'title' | 'author' | 'series' | 'published' | 'rating';
+export type LibrarySort =
+  | 'recent'
+  | 'title'
+  | 'author'
+  | 'series'
+  | 'published'
+  | 'rating'
+  | 'status'
+  | 'device'
+  | 'lastRead'
+  | 'format'
+  | 'size'
+  | 'language';
 
-export const SORT_OPTIONS: [LibrarySort, string][] = [
-  ['recent', 'Recently added'],
-  ['title', 'Title'],
-  ['author', 'Author'],
-  ['series', 'Series'],
-  ['published', 'Published'],
-  ['rating', 'Rating']
-];
+interface SortDef {
+  label: string;
+  /** The order you get first: A to Z, or newest, biggest or best first. */
+  first: 'asc' | 'desc';
+  /** Compares two books in the `first` order. */
+  cmp: (a: Book, b: Book) => number;
+  /** Books without a value go last, whichever way round the list is. */
+  has?: (b: Book) => boolean;
+}
+
+const byTitle = (a: Book, b: Book) => sortTitle(a.title).localeCompare(sortTitle(b.title));
+const statusRank = (b: Book) => (b.status === 'finished' ? 200 : b.status === 'reading' ? 100 + b.progress : 0);
+const deviceRank = (b: Book) => (b.queuedFor.length ? 1 : b.onDevices.length ? 2 : 0);
+
+const SORTS: Record<LibrarySort, SortDef> = {
+  recent: { label: 'Recently added', first: 'desc', cmp: (a, b) => b.addedAt.localeCompare(a.addedAt) || b.id - a.id },
+  title: { label: 'Title', first: 'asc', cmp: byTitle },
+  author: { label: 'Author', first: 'asc', cmp: (a, b) => authorSortKey(a).localeCompare(authorSortKey(b)) },
+  series: {
+    label: 'Series',
+    first: 'asc',
+    has: (b) => !!b.series,
+    cmp: (a, b) =>
+      sortTitle(a.series ?? '').localeCompare(sortTitle(b.series ?? '')) ||
+      // Unnumbered books after numbered ones.
+      (a.seriesIndex ?? 1e9) - (b.seriesIndex ?? 1e9)
+  },
+  published: { label: 'Published', first: 'desc', has: (b) => !!b.published, cmp: (a, b) => (b.published ?? '').localeCompare(a.published ?? '') },
+  rating: { label: 'Rating', first: 'desc', has: (b) => !!b.rating, cmp: (a, b) => (b.rating ?? 0) - (a.rating ?? 0) },
+  status: { label: 'Reading progress', first: 'desc', cmp: (a, b) => statusRank(b) - statusRank(a) },
+  device: { label: 'On a device', first: 'desc', cmp: (a, b) => deviceRank(b) - deviceRank(a) },
+  lastRead: { label: 'Last read', first: 'desc', has: (b) => !!b.lastRead, cmp: (a, b) => (b.lastRead ?? '').localeCompare(a.lastRead ?? '') },
+  format: { label: 'Format', first: 'asc', cmp: (a, b) => a.format.localeCompare(b.format) },
+  size: { label: 'File size', first: 'desc', cmp: (a, b) => b.sizeBytes - a.sizeBytes },
+  language: {
+    label: 'Language',
+    first: 'asc',
+    has: (b) => !!languageName(b.language),
+    cmp: (a, b) => (languageName(a.language) ?? '').localeCompare(languageName(b.language) ?? '')
+  }
+};
+
+export const SORT_OPTIONS = (Object.keys(SORTS) as LibrarySort[]).map((id): [LibrarySort, string] => [id, SORTS[id].label]);
+
+/** True when the list runs A to Z, oldest first or smallest first. */
+export const isAscending = (sort: LibrarySort, reversed: boolean) => (SORTS[sort].first === 'asc') !== reversed;
+
+/** Orders books by `sort`, flipped when `reversed`. Ties go by title. */
+export function compareBooks(sort: LibrarySort, reversed = false): (a: Book, b: Book) => number {
+  const { cmp, has } = SORTS[sort] ?? SORTS.recent;
+  const dir = reversed ? -1 : 1;
+  return (a, b) => {
+    if (has && has(a) !== has(b)) return has(a) ? -1 : 1;
+    return dir * cmp(a, b) || byTitle(a, b) || a.id - b.id;
+  };
+}
 
 /** A filtered view of the library: one author, series, tag or collection. */
 export interface Scope {
@@ -24,6 +84,7 @@ export interface Scope {
 }
 
 const SORT_KEY = 'shelf.sort';
+const REVERSED_KEY = 'shelf.sortReversed';
 const VIEW_KEY = 'shelf.view';
 
 /** How the library is laid out: covers on wooden shelves, a plain grid, or a list with a details panel. */
@@ -42,43 +103,18 @@ function loadView(): LibraryView {
 function loadSort(): LibrarySort {
   try {
     const v = localStorage.getItem(SORT_KEY);
-    if (v && SORT_OPTIONS.some(([id]) => id === v)) return v as LibrarySort;
+    if (v && v in SORTS) return v as LibrarySort;
   } catch {
     /* storage unavailable */
   }
   return 'recent';
 }
 
-const byTitle = (a: Book, b: Book) => sortTitle(a.title).localeCompare(sortTitle(b.title));
-const byRecent = (a: Book, b: Book) => b.addedAt.localeCompare(a.addedAt) || b.id - a.id;
-
-export function compareBooks(sort: LibrarySort): (a: Book, b: Book) => number {
-  switch (sort) {
-    case 'title':
-      return (a, b) => byTitle(a, b) || byRecent(a, b);
-    case 'author':
-      return (a, b) => authorSortKey(a).localeCompare(authorSortKey(b)) || byTitle(a, b);
-    case 'series':
-      return (a, b) => {
-        if (!a.series !== !b.series) return a.series ? -1 : 1; // books without a series last
-        if (a.series && b.series) {
-          const s = sortTitle(a.series).localeCompare(sortTitle(b.series));
-          if (s) return s;
-          const ai = a.seriesIndex ?? Number.POSITIVE_INFINITY;
-          const bi = b.seriesIndex ?? Number.POSITIVE_INFINITY;
-          if (ai !== bi) return ai < bi ? -1 : 1;
-        }
-        return byTitle(a, b);
-      };
-    case 'published':
-      return (a, b) => {
-        if (!a.published !== !b.published) return a.published ? -1 : 1;
-        return (b.published ?? '').localeCompare(a.published ?? '') || byTitle(a, b);
-      };
-    case 'rating':
-      return (a, b) => (b.rating ?? 0) - (a.rating ?? 0) || byTitle(a, b);
-    default:
-      return byRecent;
+function loadReversed(): boolean {
+  try {
+    return localStorage.getItem(REVERSED_KEY) === '1';
+  } catch {
+    return false;
   }
 }
 
@@ -87,6 +123,8 @@ class LibraryStore {
   loaded = $state(false);
   filter = $state<LibraryFilter>('all');
   sort = $state<LibrarySort>(loadSort());
+  /** Whether the sort runs the other way round (Z to A, oldest first). */
+  reversed = $state(loadReversed());
   view = $state<LibraryView>(loadView());
   /** Ids that showed up after the first load, so the grid can mark them "New". */
   fresh = $state<Set<number>>(new Set());
@@ -101,10 +139,12 @@ class LibraryStore {
     }
   }
 
-  setSort(sort: LibrarySort) {
+  setSort(sort: LibrarySort, reversed = false) {
     this.sort = sort;
+    this.reversed = reversed;
     try {
       localStorage.setItem(SORT_KEY, sort);
+      localStorage.setItem(REVERSED_KEY, reversed ? '1' : '0');
     } catch {
       /* storage unavailable */
     }
@@ -205,8 +245,8 @@ class LibraryStore {
   }
 
   /** Books in the scope, filtered by the chip and ordered by `sort`. */
-  list(scope?: Scope, sort: LibrarySort = this.sort): Book[] {
-    return this.books.filter((b) => this.inScope(b, scope) && this.matches(b, this.filter)).sort(compareBooks(sort));
+  list(scope?: Scope, sort: LibrarySort = this.sort, reversed = this.reversed): Book[] {
+    return this.books.filter((b) => this.inScope(b, scope) && this.matches(b, this.filter)).sort(compareBooks(sort, reversed));
   }
 
   get onDeviceCount(): number {
