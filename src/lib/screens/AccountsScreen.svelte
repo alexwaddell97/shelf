@@ -1,37 +1,29 @@
 <script lang="ts">
+  import { openUrl } from '$lib/api';
   import Icon from '$lib/components/Icon.svelte';
   import { plural, timeAgo } from '$lib/format';
-  import { goodreads } from '$lib/stores/goodreads.svelte';
+  import { describeApplied, goodreads } from '$lib/stores/goodreads.svelte';
+  import { attempt } from '$lib/stores/toast.svelte';
 
-  let input = $state('');
-  let confirmingDisconnect = $state(false);
+  const EXPORT_PAGE = 'https://www.goodreads.com/review/import';
 
-  const account = $derived(goodreads.account);
+  const last = $derived(goodreads.status?.lastImport ?? null);
   const rows = $derived(
-    account
+    last
       ? [
-          { from: 'Want to Read', to: 'Wishlist', count: account.wantToRead },
-          { from: 'Currently Reading', to: 'Reading', count: account.reading },
-          { from: 'Read', to: 'Finished', count: account.read }
+          { from: 'Want to Read', to: 'Wishlist', count: last.wantToRead },
+          { from: 'Currently Reading', to: 'Reading', count: last.reading },
+          { from: 'Read', to: 'Finished', count: last.read }
         ]
       : []
   );
-
-  async function connect(e: SubmitEvent) {
-    e.preventDefault();
-    if (!input.trim()) {
-      goodreads.error = 'Paste your Goodreads profile link first.';
-      return;
-    }
-    if (await goodreads.connect(input)) input = '';
-  }
 </script>
 
 <section aria-labelledby="acc-h">
   <div>
     <h1 id="acc-h" class="page-title">Accounts</h1>
     <p class="page-sub">
-      Connect a reading tracker to fill your wishlist and keep your reading history in step. Both are optional.
+      Bring in a reading tracker to fill your wishlist and keep your reading history in step. Both are optional.
     </p>
   </div>
 
@@ -41,47 +33,27 @@
       <div class="text">
         <div class="name-row">
           <h2>Goodreads</h2>
-          <span class="pill">Read-only</span>
+          <span class="pill">Import</span>
         </div>
         <p>Want to Read fills your wishlist. Read and Currently Reading mark books in your library.</p>
       </div>
-      {#if account}
-        <span class="connected"><span class="dot"></span>Connected as {account.name ?? `Goodreads user ${account.userId}`}</span>
+      {#if last}
+        <span class="connected"><span class="dot"></span>Imported {timeAgo(last.importedAt)}</span>
       {/if}
     </div>
 
-    {#if !account}
-      {#if goodreads.connecting}
-        <div class="checking" role="status">
-          <span class="spin ring"></span>
-          Checking your shelves…
-        </div>
-      {:else}
-        <form class="connect" onsubmit={connect}>
-          <div class="field grow">
-            <label for="gr-user">Your Goodreads profile link</label>
-            <input
-              id="gr-user"
-              class="input big"
-              bind:value={input}
-              placeholder="goodreads.com/user/show/12345-yourname"
-              autocomplete="off"
-              spellcheck="false"
-              aria-describedby={goodreads.error ? 'gr-error' : undefined}
-              aria-invalid={goodreads.error ? true : undefined}
-            />
-          </div>
-          <button type="submit" class="btn primary">Connect</button>
-        </form>
-        {#if goodreads.error}
-          <p id="gr-error" class="error" role="alert">{goodreads.error}</p>
-        {/if}
-      {/if}
-      <p class="fine">
-        Read-only, and no password needed: Shelf reads your public shelf feeds. Your profile needs to be public. Nothing is
-        sent to Goodreads, and changes you make in Shelf don't go back to it.
-      </p>
-    {:else}
+    {#if goodreads.status?.oldProfileLink}
+      <div class="notice" role="note">
+        <p>
+          <strong>Your Goodreads profile link has stopped updating.</strong> Goodreads switched off the shelf feeds Shelf read
+          (November 2026), and shelves now need signing in to see. Import your Goodreads export below instead. Your
+          wishlist and reading history are kept.
+        </p>
+        <button class="btn sm ghost" onclick={() => goodreads.forgetProfileLink()}>Got it</button>
+      </div>
+    {/if}
+
+    {#if last}
       <div class="rows">
         {#each rows as r (r.from)}
           <div class="row">
@@ -92,36 +64,37 @@
           </div>
         {/each}
       </div>
-      <div class="footer">
-        <span class="fine grow">
-          Checks every hour · last checked {account.lastChecked ? timeAgo(account.lastChecked) : 'not yet'}
-        </span>
-        <button class="btn sm" onclick={() => goodreads.check()} disabled={goodreads.checking}>
-          {goodreads.checking ? 'Checking…' : 'Check now'}
-        </button>
-        {#if confirmingDisconnect}
-          <button class="btn sm danger" onclick={() => { confirmingDisconnect = false; void goodreads.disconnect(); }}>
-            Yes, disconnect
-          </button>
-          <button class="btn sm ghost" onclick={() => (confirmingDisconnect = false)}>Cancel</button>
-        {:else}
-          <button class="btn sm ghost danger" onclick={() => (confirmingDisconnect = true)}>Disconnect</button>
-        {/if}
-      </div>
+      <p class="fine">
+        From <span class="mono">{last.fileName}</span>. {describeApplied(last.applied).replace('Goodreads import: ', 'Last import: ')}
+      </p>
     {/if}
 
-    <div class="csv">
-      <div class="csv-text">
-        <strong>Import a Goodreads export (CSV)</strong>
-        <span>
-          Gets your full history, not just recent shelves. On Goodreads: My Books, then Import and export, then Export
-          library.
+    <ol class="steps">
+      <li>
+        <span class="step-text">On Goodreads, open <strong>My Books</strong>, then <strong>Import and export</strong>.</span>
+        <button class="btn sm" onclick={() => attempt('Could not open Goodreads', () => openUrl(EXPORT_PAGE))}>
+          <Icon name="external" size={15} />
+          Open that page
+        </button>
+      </li>
+      <li>
+        <span class="step-text">
+          Press <strong>Export Library</strong>. When the link appears (it can take a minute), download the file.
         </span>
-      </div>
-      <button class="btn sm" onclick={() => goodreads.importCsv()} disabled={goodreads.importing}>
-        {goodreads.importing ? 'Importing…' : 'Choose CSV file…'}
-      </button>
-    </div>
+      </li>
+      <li>
+        <span class="step-text">Choose the downloaded file here.</span>
+        <button class="btn sm primary" onclick={() => goodreads.importCsv()} disabled={goodreads.importing}>
+          {goodreads.importing ? 'Importing…' : last ? 'Import a newer export…' : 'Choose export file…'}
+        </button>
+      </li>
+    </ol>
+
+    <p class="fine">
+      Import a fresh export whenever you like to bring Shelf up to date: books you've taken off Want to Read leave your
+      wishlist too. Shelf only reads the file. Nothing is sent to Goodreads, and changes you make in Shelf don't go back
+      to it.
+    </p>
   </div>
 
   <div class="account soon-card">
@@ -210,41 +183,6 @@
     border-radius: 50%;
     background: var(--teal);
   }
-  .connect {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    gap: 12px;
-  }
-  .grow {
-    flex: 1 1 320px;
-  }
-  .input.big {
-    height: 44px;
-  }
-  .connect .btn {
-    height: 44px;
-    padding: 0 20px;
-  }
-  .error {
-    color: var(--danger);
-    font-size: 13px;
-    margin-top: -6px;
-    word-break: break-word;
-  }
-  .checking {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: var(--text-soft);
-  }
-  .ring {
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    border: 2px solid var(--border-dashed);
-    border-top-color: var(--accent);
-  }
   .fine {
     font-size: 12px;
     color: var(--faint);
@@ -284,32 +222,54 @@
     font-size: 13px;
     color: var(--muted);
   }
-  .footer {
+  .notice {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: var(--r2);
+    background: var(--accent-bg);
   }
-  .footer .grow {
-    flex: 1 1 200px;
+  .notice p {
+    flex: 1 1 320px;
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-soft);
   }
-  .csv {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 14px;
-    padding-top: 16px;
-    border-top: 1px solid var(--border-faint);
-  }
-  .csv-text {
-    flex: 1 1 280px;
+  .steps {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 10px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    counter-reset: step;
   }
-  .csv-text span {
-    font-size: 13px;
+  .steps li {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 14px;
+    counter-increment: step;
+  }
+  .steps li::before {
+    content: counter(step);
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--fill);
+    font-size: 12px;
+    font-weight: 700;
     color: var(--muted);
+  }
+  .step-text {
+    flex: 1 1 280px;
+    font-size: 13px;
+    color: var(--text-soft);
   }
   .soon {
     padding: 6px 12px;

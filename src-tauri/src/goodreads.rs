@@ -1,6 +1,7 @@
-//! One-way sync from Goodreads. Goodreads closed its API to new apps in 2020, so this
-//! reads the public RSS feed Goodreads publishes for each shelf, or a CSV export.
-//! Nothing is ever sent back to Goodreads.
+//! One-way import from Goodreads. Goodreads closed its API to new apps in 2020 and retired
+//! its shelf RSS feeds in November 2026, and shelf pages now need signing in, so the way in
+//! is the library export Goodreads gives you (My Books → Import and export → Export
+//! library). Importing it again brings Shelf up to date. Nothing is sent to Goodreads.
 //!
 //! - "to-read" fills the wishlist (and Goodreads-sourced wishes that left the shelf are removed),
 //! - "currently-reading" marks matching unread library books as reading,
@@ -13,12 +14,9 @@ use crate::db::{self, same_work};
 use crate::error::{Error, Result};
 use crate::model::CatalogBook;
 use crate::state::AppState;
-use roxmltree::Document;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::Path;
-use std::time::Duration;
-use tauri::{AppHandle, Emitter, Manager};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Shelf {
@@ -28,7 +26,7 @@ pub enum Shelf {
 }
 
 impl Shelf {
-    fn feed_name(self) -> &'static str {
+    fn name(self) -> &'static str {
         match self {
             Shelf::ToRead => "to-read",
             Shelf::Reading => "currently-reading",
@@ -39,7 +37,7 @@ impl Shelf {
     fn from_name(name: &str) -> Option<Shelf> {
         [Shelf::ToRead, Shelf::Reading, Shelf::Read]
             .into_iter()
-            .find(|s| s.feed_name() == name)
+            .find(|s| s.name() == name)
     }
 }
 
@@ -54,52 +52,39 @@ pub struct Entry {
     pub read_at: Option<String>,
 }
 
+/// What the last export import found and changed.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Account {
-    pub user_id: String,
-    pub name: Option<String>,
-    pub last_checked: Option<String>,
+pub struct LastImport {
+    pub file_name: String,
+    /// RFC 3339.
+    pub imported_at: String,
     pub want_to_read: usize,
     pub reading: usize,
     pub read: usize,
-    /// Wishlist items added by the last check.
-    pub last_added: usize,
+    pub applied: Applied,
 }
 
+/// The Goodreads card: the last import, and whether a profile link from before the feeds
+/// were retired is still saved (so the app can say why it stopped updating).
 #[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Status {
+    pub last_import: Option<LastImport>,
+    pub old_profile_link: bool,
+}
+
+/// Key of the profile-link connection used while the feeds still worked.
+const OLD_ACCOUNT_KEY: &str = "goodreads";
+const LAST_IMPORT_KEY: &str = "goodreads_import";
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Applied {
     pub added_to_wishlist: usize,
     pub removed_from_wishlist: usize,
     pub marked_reading: usize,
     pub marked_finished: usize,
-}
-
-/// Pulls the numeric user id out of a profile link like
-/// `https://www.goodreads.com/user/show/12345-alex`, or accepts a bare id.
-pub fn parse_user_id(input: &str) -> Option<String> {
-    let input = input.trim();
-    if !input.is_empty() && input.chars().all(|c| c.is_ascii_digit()) {
-        return Some(input.to_string());
-    }
-    for marker in [
-        "/user/show/",
-        "/review/list/",
-        "/review/list_rss/",
-        "/user/",
-    ] {
-        if let Some(pos) = input.find(marker) {
-            let digits: String = input[pos + marker.len()..]
-                .chars()
-                .take_while(|c| c.is_ascii_digit())
-                .collect();
-            if !digits.is_empty() {
-                return Some(digits);
-            }
-        }
-    }
-    None
 }
 
 /// Goodreads titles carry the series: "Leviathan Wakes (The Expanse, #1)" → "Leviathan Wakes".
@@ -111,82 +96,6 @@ fn clean_title(title: &str) -> String {
         }
         _ => title.to_string(),
     }
-}
-
-fn child_text(node: roxmltree::Node, name: &str) -> Option<String> {
-    node.children()
-        .find(|n| n.has_tag_name(name))
-        .and_then(|n| n.text())
-        .map(|t| t.trim().to_string())
-        .filter(|t| !t.is_empty())
-}
-
-/// Parses one page of a shelf feed: (owner's name, entries).
-fn parse_feed(xml: &str, shelf: Shelf) -> Result<(Option<String>, Vec<Entry>)> {
-    let doc = Document::parse(xml)?;
-    let channel = doc.descendants().find(|n| n.has_tag_name("channel"));
-    // The channel title reads "Alex's bookshelf: to-read".
-    let name = channel
-        .and_then(|c| child_text(c, "title"))
-        .and_then(|t| t.split("'s bookshelf").next().map(str::to_string))
-        .filter(|n| !n.contains("bookshelf"));
-    let entries = doc
-        .descendants()
-        .filter(|n| n.has_tag_name("item"))
-        .filter_map(|item| {
-            Some(Entry {
-                book_id: child_text(item, "book_id")?,
-                title: clean_title(&child_text(item, "title")?),
-                author: child_text(item, "author_name")
-                    .map(|a| db::collapse_spaces(&a))
-                    .unwrap_or_else(|| "Unknown author".into()),
-                shelf,
-                cover_url: child_text(item, "book_large_image_url")
-                    .or_else(|| child_text(item, "book_image_url")),
-                read_at: child_text(item, "user_read_at")
-                    .and_then(|d| chrono::DateTime::parse_from_rfc2822(&d).ok())
-                    .map(|d| {
-                        d.to_utc()
-                            .to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
-                    }),
-            })
-        })
-        .collect();
-    Ok((name, entries))
-}
-
-async fn fetch_shelf(
-    http: &reqwest::Client,
-    user_id: &str,
-    shelf: Shelf,
-) -> Result<(Option<String>, Vec<Entry>)> {
-    let mut name = None;
-    let mut all: Vec<Entry> = Vec::new();
-    let mut seen = HashSet::new();
-    for page in 1..=30 {
-        let url = format!(
-            "https://www.goodreads.com/review/list_rss/{user_id}?shelf={}&page={page}",
-            shelf.feed_name()
-        );
-        let response = http.get(url).send().await?;
-        if response.status().is_client_error() {
-            return Err(Error::msg(
-                "Goodreads didn't share those shelves. Check the profile link, and that the profile is public.",
-            ));
-        }
-        let xml = response.error_for_status()?.text().await?;
-        let (page_name, entries) = parse_feed(&xml, shelf)?;
-        name = name.or(page_name);
-        let fresh: Vec<Entry> = entries
-            .into_iter()
-            .filter(|e| seen.insert(e.book_id.clone()))
-            .collect();
-        if fresh.is_empty() {
-            break;
-        }
-        all.extend(fresh);
-    }
-    Ok((name, all))
 }
 
 /// Applies Goodreads shelves to the library and wishlist.
@@ -259,42 +168,41 @@ pub fn apply(state: &AppState, entries: &[Entry], full_to_read_list: bool) -> Re
     Ok(applied)
 }
 
-pub fn account(state: &AppState) -> Result<Option<Account>> {
-    db::kv_get(&state.db(), "goodreads")
+pub fn status(state: &AppState) -> Result<Status> {
+    let conn = state.db();
+    Ok(Status {
+        last_import: db::kv_get(&conn, LAST_IMPORT_KEY)?,
+        old_profile_link: db::kv_get::<serde_json::Value>(&conn, OLD_ACCOUNT_KEY)?.is_some(),
+    })
 }
 
-/// Fetches all three shelves for a user and applies them. Saves the account.
-pub async fn check(state: &AppState, user_id: &str) -> Result<Account> {
-    let (want, reading, read) = tokio::join!(
-        fetch_shelf(&state.http, user_id, Shelf::ToRead),
-        fetch_shelf(&state.http, user_id, Shelf::Reading),
-        fetch_shelf(&state.http, user_id, Shelf::Read),
-    );
-    let (name, want) = want?;
-    let (_, reading) = reading?;
-    let (_, read) = read?;
-    let mut entries = want.clone();
-    entries.extend(reading.iter().cloned());
-    entries.extend(read.iter().cloned());
-    let applied = apply(state, &entries, true)?;
-    let account = Account {
-        user_id: user_id.to_string(),
-        name,
-        last_checked: Some(db::now()),
-        want_to_read: want.len(),
-        reading: reading.len(),
-        read: read.len(),
-        last_added: applied.added_to_wishlist,
-    };
-    db::kv_set(&state.db(), "goodreads", &account)?;
-    Ok(account)
-}
-
-pub fn disconnect(state: &AppState) -> Result<()> {
+/// Forgets the profile link saved before the feeds were retired.
+pub fn forget_old_profile_link(state: &AppState) -> Result<()> {
     state
         .db()
-        .execute("DELETE FROM kv WHERE key = 'goodreads'", [])?;
+        .execute("DELETE FROM kv WHERE key = ?1", [OLD_ACCOUNT_KEY])?;
     Ok(())
+}
+
+/// Imports a library export and remembers what it found. An export lists every shelf, so
+/// it's the whole Want to Read list: Goodreads wishes no longer on it leave the wishlist.
+pub fn import_export(state: &AppState, path: &Path) -> Result<LastImport> {
+    let entries = read_csv(path)?;
+    let applied = apply(state, &entries, true)?;
+    let count = |shelf| entries.iter().filter(|e| e.shelf == shelf).count();
+    let last = LastImport {
+        file_name: path
+            .file_name()
+            .map(|n| n.to_string_lossy().into_owned())
+            .unwrap_or_default(),
+        imported_at: db::now(),
+        want_to_read: count(Shelf::ToRead),
+        reading: count(Shelf::Reading),
+        read: count(Shelf::Read),
+        applied,
+    };
+    db::kv_set(&state.db(), LAST_IMPORT_KEY, &last)?;
+    Ok(last)
 }
 
 /// Splits CSV text into rows, handling quoted fields with embedded commas, quotes and newlines.
@@ -359,7 +267,9 @@ pub fn read_csv(path: &Path) -> Result<Vec<Entry>> {
             Some(Entry {
                 book_id: get(id)?,
                 title: clean_title(&get(title)?),
-                author: get(author).unwrap_or_else(|| "Unknown author".into()),
+                author: get(author)
+                    .map(|a| db::collapse_spaces(&a))
+                    .unwrap_or_else(|| "Unknown author".into()),
                 shelf: Shelf::from_name(&get(shelf)?)?,
                 cover_url: None,
                 read_at: date_read
@@ -371,66 +281,9 @@ pub fn read_csv(path: &Path) -> Result<Vec<Entry>> {
         .collect())
 }
 
-/// Re-checks the connected Goodreads account every hour.
-pub fn start_hourly(app: AppHandle) {
-    std::thread::spawn(move || {
-        loop {
-            std::thread::sleep(Duration::from_secs(60 * 60));
-            let state = app.state::<AppState>();
-            if let Ok(Some(account)) = account(&state) {
-                if tauri::async_runtime::block_on(check(&state, &account.user_id)).is_ok() {
-                    let _ = app.emit("library-changed", ());
-                }
-            }
-        }
-    });
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    const FEED: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0"><channel>
-  <title>Alex's bookshelf: read</title>
-  <item>
-    <title>Leviathan Wakes (The Expanse, #1)</title>
-    <book_id>8855321</book_id>
-    <book_large_image_url>https://images.example/lw.jpg</book_large_image_url>
-    <author_name>James S.A. Corey</author_name>
-    <user_read_at><![CDATA[Sat, 12 Aug 2023 00:00:00 -0700]]></user_read_at>
-  </item>
-  <item>
-    <title>Piranesi</title>
-    <book_id>50202953</book_id>
-    <author_name>Susanna Clarke</author_name>
-    <user_read_at></user_read_at>
-  </item>
-</channel></rss>"#;
-
-    #[test]
-    fn parses_profile_links() {
-        assert_eq!(
-            parse_user_id("https://www.goodreads.com/user/show/12345-alex").as_deref(),
-            Some("12345")
-        );
-        assert_eq!(
-            parse_user_id("goodreads.com/review/list/987?shelf=read").as_deref(),
-            Some("987")
-        );
-        assert_eq!(parse_user_id(" 4242 ").as_deref(), Some("4242"));
-        assert_eq!(parse_user_id("alex"), None);
-    }
-
-    #[test]
-    fn parses_a_shelf_feed() {
-        let (name, entries) = parse_feed(FEED, Shelf::Read).unwrap();
-        assert_eq!(name.as_deref(), Some("Alex"));
-        assert_eq!(entries.len(), 2);
-        assert_eq!(entries[0].title, "Leviathan Wakes");
-        assert_eq!(entries[0].read_at.as_deref(), Some("2023-08-12T07:00:00Z"));
-        assert_eq!(entries[1].read_at, None);
-    }
 
     #[test]
     fn parses_a_csv_export() {
@@ -452,6 +305,41 @@ mod tests {
         );
         assert_eq!(entries[0].read_at.as_deref(), Some("2024-01-05T00:00:00Z"));
         assert_eq!(entries[1].title, "Babel, or the Necessity of Violence");
+    }
+
+    #[test]
+    fn imports_an_export_and_remembers_it() {
+        let data = tempfile::tempdir().unwrap();
+        let state = AppState::open(data.path().to_path_buf(), true).unwrap();
+        // A profile link saved before the feeds were retired.
+        db::kv_set(&state.db(), OLD_ACCOUNT_KEY, &serde_json::json!({ "userId": "1" })).unwrap();
+        let path = data.path().join("goodreads_library_export.csv");
+        std::fs::write(
+            &path,
+            "Book Id,Title,Author,Exclusive Shelf
+             1,Hyperion,Dan  Simmons,to-read
+             2,Piranesi,Susanna Clarke,read
+",
+        )
+        .unwrap();
+
+        let last = import_export(&state, &path).unwrap();
+        assert_eq!((last.want_to_read, last.read, last.applied.added_to_wishlist), (1, 1, 1));
+        assert_eq!(last.file_name, "goodreads_library_export.csv");
+        let wish = &db::list_wishlist(&state.db()).unwrap()[0];
+        assert_eq!(wish.author, "Dan Simmons", "doubled spaces are tidied");
+
+        let status = status(&state).unwrap();
+        assert!(status.old_profile_link);
+        assert_eq!(status.last_import.unwrap().want_to_read, 1);
+        forget_old_profile_link(&state).unwrap();
+        assert!(!self::status(&state).unwrap().old_profile_link);
+
+        // A later export without Hyperion on Want to Read takes it off the wishlist.
+        std::fs::write(&path, "Book Id,Title,Author,Exclusive Shelf
+2,Piranesi,Susanna Clarke,read
+").unwrap();
+        assert_eq!(import_export(&state, &path).unwrap().applied.removed_from_wishlist, 1);
     }
 
     #[test]

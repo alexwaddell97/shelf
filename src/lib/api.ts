@@ -204,16 +204,20 @@ export interface CalibreReport {
 /** Progress of a calibre import (deviceId is always empty). */
 export type CalibreProgress = SyncProgress;
 
-export interface GoodreadsAccount {
-  userId: string;
-  /** Profile owner's first name as Goodreads shows it, if known. */
-  name: string | null;
-  lastChecked: string | null;
+/** What the last Goodreads export import found and changed. */
+export interface GoodreadsImport {
+  fileName: string;
+  importedAt: string;
   wantToRead: number;
   reading: number;
   read: number;
-  /** Wishlist items added by the last check. */
-  lastAdded: number;
+  applied: GoodreadsApplied;
+}
+
+export interface GoodreadsStatus {
+  lastImport: GoodreadsImport | null;
+  /** A profile link from before Goodreads retired its feeds is still saved. */
+  oldProfileLink: boolean;
 }
 
 export interface GoodreadsApplied {
@@ -263,14 +267,11 @@ export const inspectCalibre = (path: string) => invoke<CalibreSummary>('inspect_
 /** Imports every usable book. Doesn't queue them for devices. Emits calibre-progress. */
 export const importCalibre = (path: string) => invoke<CalibreReport>('import_calibre', { path });
 
-// --- Goodreads (one-way, read-only: public shelf feeds or a CSV export) ---
-export const getGoodreads = () => invoke<GoodreadsAccount | null>('get_goodreads');
-/** `profile` is a profile link (goodreads.com/user/show/12345-name) or the numeric id. */
-export const connectGoodreads = (profile: string) => invoke<GoodreadsAccount>('connect_goodreads', { profile });
-export const checkGoodreads = () => invoke<GoodreadsAccount>('check_goodreads');
-export const disconnectGoodreads = () => invoke<void>('disconnect_goodreads');
+// --- Goodreads (one-way, read-only: the library export) ---
+export const getGoodreads = () => invoke<GoodreadsStatus>('get_goodreads');
+export const forgetGoodreadsProfile = () => invoke<void>('forget_goodreads_profile');
 /** A Goodreads "Export library" CSV file. */
-export const importGoodreadsCsv = (path: string) => invoke<GoodreadsApplied>('import_goodreads_csv', { path });
+export const importGoodreadsCsv = (path: string) => invoke<GoodreadsImport>('import_goodreads_csv', { path });
 
 // --- Tags and collections ---
 export const listLabels = (kind: LabelKind) => invoke<Label[]>('list_labels', { kind });

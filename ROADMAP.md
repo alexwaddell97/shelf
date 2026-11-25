@@ -9,7 +9,7 @@ This page compares Shelf with calibre and the other tools people use alongside i
 - **Kobo without plugins.** Native kepub conversion, metadata and covers written into the copy on the device, books calibre already put there linked automatically, and reading progress and finished status read back. With calibre, that needs the Kobo Utilities and kepubify plugins.
 - **A modern, fast interface.** Bookshelf, grid and list views, instant search with highlighted suggestions, and a Ctrl+K command palette.
 - **Watched folders.** A book that lands in Downloads goes straight into the library. calibre needs an add-on for this.
-- **Wishlist and "Find elsewhere".** Wanted books (including your Goodreads want-to-read shelf) become real books when you add the file, and each catalogue page links to legal sources.
+- **Wishlist and "Find elsewhere".** Wanted books (including your Goodreads want-to-read shelf, from its library export) become real books when you add the file, and each catalogue page links to legal sources.
 - **A built-in reader** that opens each book in its own window and remembers your place.
 
 ## Gap analysis
@@ -24,7 +24,7 @@ What calibre and other tools offer that Shelf doesn't yet. **Value** is to someo
 | Smart shelves and saved searches (`author:`, `rating:>3`…) | Virtual libraries, search syntax | "Magic shelves" in CWA and BookLore | Filters, no saved searches | **High** |
 | Kobo highlights and annotations export | Plugin | Readwise (Kobo store books only) | No | **High** |
 | Kindle (USB and Send to Kindle email) | Yes | CWA (email) | No | **High** |
-| Two-way reading-service sync (Hardcover, Goodreads, StoryGraph) | Plugin | CWA, KOReader plugins | Goodreads one-way import | **High** |
+| Two-way reading-service sync (Hardcover, Goodreads, StoryGraph) | Plugin | CWA, KOReader plugins | Goodreads export import (its feeds were retired in Nov 2026) | **High** |
 | Kobo collections from series, tags and shelves | Plugin | CWA, Komga | No | Medium–high |
 | Reading stats (time, pages, books per year) | No | KOReader, KoInsight | Progress only | Medium–high |
 | Format conversion (EPUB ⇄ AZW3/MOBI, PDF/DOCX → EPUB) | Its core strength | CWA (via calibre) | EPUB → kepub only | Medium–high |
@@ -64,7 +64,7 @@ Use what's already on the e-reader.
 
 - **Highlights and annotations** read from the Kobo, sideloaded books included. Show them per book, and export them to Markdown, CSV and Readwise.
 - **Reading stats**: books finished, time read and a yearly goal, from the Kobo's own records.
-- **Hardcover sync**: want-to-read, status and rating, both ways, through Hardcover's API. Goodreads stays one-way because it no longer offers an API.
+- **Hardcover sync**: want-to-read, status and rating, both ways, through Hardcover's API. This matters more now: Goodreads retired its shelf feeds in November 2026, so Goodreads is import-only (from its library export).
 - **Kobo collections** generated from series, tags or Shelf collections.
 - **Saved searches and smart shelves**, with a calibre-style search syntax.
 

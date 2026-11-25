@@ -1,7 +1,6 @@
 <script lang="ts">
   import { basename } from '$lib/format';
   import { devices } from '$lib/stores/devices.svelte';
-  import { goodreads } from '$lib/stores/goodreads.svelte';
   import { library } from '$lib/stores/library.svelte';
   import { nav, type BrowseKind, type Section } from '$lib/stores/nav.svelte';
   import { settings } from '$lib/stores/settings.svelte';
@@ -65,8 +64,6 @@
           <span class="queue-badge" aria-label="{queue} waiting to send">{queue}</span>
         {:else if item.section === 'sources' && updates.available}
           <span class="conn-dot update-dot" role="img" aria-label="Update available" title="Shelf {updates.available.version} is available"></span>
-        {:else if item.section === 'accounts' && goodreads.account}
-          <span class="conn-dot" role="img" aria-label="Goodreads connected" title="Goodreads connected"></span>
         {:else if counts[item.section] !== undefined}
           <span class="count mono">{counts[item.section]}</span>
         {/if}

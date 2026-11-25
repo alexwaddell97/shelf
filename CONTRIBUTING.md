@@ -16,7 +16,7 @@ See *Building from source* in the [README](README.md). The app is a [Tauri 2](ht
   - `catalog.rs` — Open Library and Project Gutenberg search.
   - `calibre.rs` — importing a calibre library (from a copy of its `metadata.db`).
     To try it on a real library: `SHELF_TEST_CALIBRE_LIBRARY=/path/to/library cargo test real_calibre -- --ignored --nocapture`.
-  - `goodreads.rs` — Goodreads shelf feeds and CSV exports.
+  - `goodreads.rs` — Goodreads library exports (CSV).
   - `watcher.rs` — watch folders.
 
 ## Before you open a pull request

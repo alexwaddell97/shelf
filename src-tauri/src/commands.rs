@@ -344,50 +344,22 @@ pub async fn import_calibre(app: AppHandle, path: PathBuf) -> Result<calibre::Ca
 // --- Goodreads ---
 
 #[tauri::command]
-pub fn get_goodreads(state: State<'_, AppState>) -> Result<Option<goodreads::Account>> {
-    goodreads::account(&state)
+pub fn get_goodreads(state: State<'_, AppState>) -> Result<goodreads::Status> {
+    goodreads::status(&state)
 }
 
 #[tauri::command]
-pub async fn connect_goodreads(
-    app: AppHandle,
-    state: State<'_, AppState>,
-    profile: String,
-) -> Result<goodreads::Account> {
-    let user_id = goodreads::parse_user_id(&profile).ok_or_else(|| {
-        Error::msg("Paste the link to your Goodreads profile. It looks like goodreads.com/user/show/12345-yourname.")
-    })?;
-    let account = goodreads::check(&state, &user_id).await?;
-    let _ = app.emit("library-changed", ());
-    Ok(account)
+pub fn forget_goodreads_profile(state: State<'_, AppState>) -> Result<()> {
+    goodreads::forget_old_profile_link(&state)
 }
 
 #[tauri::command]
-pub async fn check_goodreads(
-    app: AppHandle,
-    state: State<'_, AppState>,
-) -> Result<goodreads::Account> {
-    let account =
-        goodreads::account(&state)?.ok_or_else(|| Error::msg("Goodreads isn't connected."))?;
-    let account = goodreads::check(&state, &account.user_id).await?;
-    let _ = app.emit("library-changed", ());
-    Ok(account)
-}
-
-#[tauri::command]
-pub fn disconnect_goodreads(state: State<'_, AppState>) -> Result<()> {
-    goodreads::disconnect(&state)
-}
-
-#[tauri::command]
-pub async fn import_goodreads_csv(app: AppHandle, path: PathBuf) -> Result<goodreads::Applied> {
+pub async fn import_goodreads_csv(app: AppHandle, path: PathBuf) -> Result<goodreads::LastImport> {
     blocking(move || {
         let state = app.state::<AppState>();
-        let entries = goodreads::read_csv(&path)?;
-        // An export lists every shelf, but it's a one-off: keep existing Goodreads wishes.
-        let applied = goodreads::apply(&state, &entries, false)?;
+        let last = goodreads::import_export(&state, &path)?;
         let _ = app.emit("library-changed", ());
-        Ok(applied)
+        Ok(last)
     })
     .await
 }

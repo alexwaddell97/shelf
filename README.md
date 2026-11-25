@@ -27,7 +27,7 @@ Shelf is free and always will be. If it saves you time, [paying what you like on
 - **Wishlist** — save books you don't have yet. When a matching file arrives, it's matched automatically.
 - **Your own sources** — add any shop or library that has a search page, using a URL template like `https://example.com/search?q={query}`.
 - **Bring your calibre library** — Shelf finds your calibre library and imports it with calibre's titles, authors, series, descriptions and covers. calibre's files are only read, never changed, so you can keep using both.
-- **Goodreads** — connect your public profile and your *Want to Read* shelf fills your wishlist, while *Read* and *Currently Reading* mark books in your library. It's one-way and needs no password (Goodreads closed its API to new apps, so Shelf reads the public shelf feeds). You can also import a Goodreads CSV export.
+- **Goodreads** — import your Goodreads library export and your *Want to Read* shelf fills your wishlist, while *Read* and *Currently Reading* mark books in your library. Import a fresh export any time to bring Shelf up to date. It's one-way and needs no password. (Goodreads closed its API in 2020 and retired its shelf feeds in November 2026, so the export is the only way in.)
 
 ## E-reader support
 
@@ -44,7 +44,7 @@ Drivers live in [`src-tauri/src/devices/`](src-tauri/src/devices). Adding one is
 
 ## Privacy
 
-Shelf has no accounts, no telemetry and no analytics. It only goes online when you search for books (Open Library and Gutendex, a Project Gutenberg API), download a free book from Project Gutenberg, open a store link in your browser, or — if you connect Goodreads — read your public shelf feeds once an hour. It also checks for a new version of Shelf when it starts and every few hours, by downloading a small file from this project's latest GitHub release; nothing about you or your library is sent.
+Shelf has no accounts, no telemetry and no analytics. It only goes online when you search for books (Open Library and Gutendex, a Project Gutenberg API), download a free book from Project Gutenberg, or open a store link in your browser. A Goodreads import only reads the file you choose. It also checks for a new version of Shelf when it starts and every few hours, by downloading a small file from this project's latest GitHub release; nothing about you or your library is sent.
 
 ## Optional tools
 

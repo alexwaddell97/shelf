@@ -40,7 +40,6 @@ pub fn run() {
             app.manage(state);
             watcher::restart(app.handle());
             devices::start_polling(app.handle().clone());
-            goodreads::start_hourly(app.handle().clone());
             open_with::open_files(app.handle(), open_with::ebook_args(std::env::args()));
             Ok(())
         })
@@ -74,9 +73,7 @@ pub fn run() {
             commands::inspect_calibre,
             commands::import_calibre,
             commands::get_goodreads,
-            commands::connect_goodreads,
-            commands::check_goodreads,
-            commands::disconnect_goodreads,
+            commands::forget_goodreads_profile,
             commands::import_goodreads_csv,
             commands::list_labels,
             commands::create_label,
