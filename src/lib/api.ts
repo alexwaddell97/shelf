@@ -181,7 +181,7 @@ export interface SyncProgress {
    * reading: books sent; reading the device and updating reading progress
    * importing: a calibre import (see CalibreProgress)
    */
-  phase: 'checking' | 'sending' | 'reading' | 'importing';
+  phase: 'checking' | 'sending' | 'reading' | 'importing' | 'details';
   done: number;
   total: number;
   current: string | null;
@@ -232,6 +232,8 @@ export const listBooks = () => invoke<Book[]>('list_books');
 export const getBook = (id: number) => invoke<Book>('get_book', { id });
 export const importFiles = (paths: string[]) => invoke<number[]>('import_files', { paths });
 export const updateBook = (id: number, patch: BookPatch) => invoke<Book>('update_book', { id, patch });
+/** Bulk edit: many patches in one transaction. Returns how many books changed. */
+export const updateBooks = (updates: { id: number; patch: BookPatch }[]) => invoke<number>('update_books', { updates });
 export const deleteBook = (id: number, deleteFile: boolean) => invoke<void>('delete_book', { id, deleteFile });
 export const revealBook = (id: number) => invoke<void>('reveal_book', { id });
 export const openBook = (id: number) => invoke<void>('open_book', { id });
@@ -291,6 +293,41 @@ export const setCoverFromUrl = (id: number, url: string) => invoke<Book>('set_co
 export const removeCover = (id: number) => invoke<Book>('remove_cover', { id });
 /** Cover options from Open Library for this book's title and author (can take a few seconds). */
 export const findCovers = (id: number) => invoke<CoverCandidate[]>('find_covers', { id });
+
+/** Details for a book from Open Library (the same work only). */
+export interface FoundDetails {
+  source: string;
+  link: string | null;
+  title: string;
+  author: string;
+  description: string | null;
+  publisher: string | null;
+  published: string | null;
+  isbn: string | null;
+  language: string | null;
+  coverUrl: string | null;
+  /** Found by the book's own ISBN rather than its title and author. */
+  byIsbn: boolean;
+}
+export interface FillReport {
+  updated: number;
+  covers: number;
+  notFound: number;
+  failed: number;
+}
+export const findDetails = (id: number) => invoke<FoundDetails[]>('find_details', { id });
+
+// --- Duplicates ---
+/** Groups of books that look like the same work, suggested copy to keep first. */
+export const findDuplicates = () => invoke<Book[][]>('find_duplicates');
+/** Folds the other copies into `keep` and removes them. */
+export const mergeDuplicates = (keep: number, remove: number[]) => invoke<Book>('merge_duplicates', { keep, remove });
+/** Remembers that these books aren't duplicates. */
+export const ignoreDuplicates = (ids: number[]) => invoke<void>('ignore_duplicates', { ids });
+/** Fills empty fields and missing covers; reports progress as `details-progress`. */
+export const fillMissingDetails = (ids: number[]) => invoke<FillReport>('fill_missing_details', { ids });
+export const onDetailsProgress = (cb: (p: SyncProgress) => void): Promise<UnlistenFn> =>
+  listen<SyncProgress>('details-progress', (e) => cb(e.payload));
 
 // --- Opening files with Shelf (double-click, Open with) ---
 /** A book opened from the file manager before the interface was listening; call once on start. */

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { shortcut } from '$lib/platform';
   import { basename } from '$lib/format';
   import { devices } from '$lib/stores/devices.svelte';
   import { library } from '$lib/stores/library.svelte';
@@ -128,7 +129,7 @@
           onclick={() => ui.toggleSidebar()}
           aria-label={ui.collapsed ? 'Show the full sidebar' : 'Collapse the sidebar to icons'}
           aria-pressed={ui.collapsed}
-          title={ui.collapsed ? 'Show the full sidebar (Ctrl+B)' : 'Collapse to icons (Ctrl+B)'}
+          title={ui.collapsed ? `Show the full sidebar (${shortcut('B')})` : `Collapse to icons (${shortcut('B')})`}
         >
           <Icon name="sidebar" size={16} />
         </button>

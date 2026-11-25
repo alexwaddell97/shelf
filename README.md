@@ -8,9 +8,12 @@ Drop in your EPUBs, and Shelf reads their covers and details, files them neatly,
 
 ## Download
 
-Get the Windows installer from [itch.io](https://alexwaddell97.itch.io/shelf), where you can pay what you like (or nothing), or from [GitHub Releases](https://github.com/alexwaddell97/shelf/releases). Shelf tells you when a new version is out and installs it for you.
+Get Shelf for Windows or macOS from [itch.io](https://alexwaddell97.itch.io/shelf), where you can pay what you like (or nothing), or from [GitHub Releases](https://github.com/alexwaddell97/shelf/releases). Shelf tells you when a new version is out and installs it for you.
 
-The installer isn't code-signed yet, so Windows may show "Windows protected your PC" the first time. Choose **More info**, then **Run anyway**.
+The downloads aren't code-signed yet:
+
+- **Windows** may show "Windows protected your PC" the first time. Choose **More info**, then **Run anyway**.
+- **macOS** may say Shelf "can't be opened" or is from an unidentified developer. Open **System Settings → Privacy & Security** and choose **Open Anyway** beside the message about Shelf. The Mac version is new: please report anything that doesn't work.
 
 ## Support Shelf
 
@@ -19,6 +22,9 @@ Shelf is free and always will be. If it saves you time, [paying what you like on
 ## Features
 
 - **Library** — bookshelf, cover grid or a sortable table with the columns you choose; instant search; filters by reading status and device; sorting either way by title, author (by surname), series order, date, rating, progress and more. Browse by author, series, collection or tag.
+- **Bulk editing** — select books in the list (Ctrl/Cmd-click, Shift-click, Ctrl/Cmd+A) to set the author or series (numbered in order), add or remove tags and collections, set a rating, fill in missing details, or send them all to your e-reader.
+- **Details from the web** — look a book up on Open Library (by ISBN, or title and author) and pick which fields to take; or fill in only the missing details and covers for many books at once.
+- **Duplicate finder** — finds books you have more than one copy of (same ISBN, or the same title and author) and merges them, keeping the tags, collections, reading progress and details of every copy.
 - **Full metadata editing** — title, authors and sort name, series and number, rating, collections, tags, publisher, date, language, ISBN and description, with Previous/Next to step through books. Covers can come from an image file or Open Library's cover search. Your edits and covers are written into the copy sent to your e-reader (your library file is left as it is), and books already on the device are updated on the next sync.
 - **Open ebooks with Shelf** — once installed and chosen as the app for `.epub`, `.mobi` or `.azw3`, double-clicking a book adds it to your library and shows it.
 - **Import anything you drop** — drag files onto the window, use *Add books*, or let Shelf watch a folder (your Downloads folder by default) and import new ebooks as they arrive. Duplicates are skipped.
@@ -44,7 +50,7 @@ Drivers live in [`src-tauri/src/devices/`](src-tauri/src/devices). Adding one is
 
 ## Privacy
 
-Shelf has no accounts, no telemetry and no analytics. It only goes online when you search for books (Open Library and Gutendex, a Project Gutenberg API), download a free book from Project Gutenberg, or open a store link in your browser. A Goodreads import only reads the file you choose. It also checks for a new version of Shelf when it starts and every few hours, by downloading a small file from this project's latest GitHub release; nothing about you or your library is sent.
+Shelf has no accounts, no telemetry and no analytics. It only goes online when you search for books (Open Library and Gutendex, a Project Gutenberg API), look up a book's details (Open Library, sending its title, author and ISBN), download a free book from Project Gutenberg, or open a store link in your browser. A Goodreads import only reads the file you choose. It also checks for a new version of Shelf when it starts and every few hours, by downloading a small file from this project's latest GitHub release; nothing about you or your library is sent.
 
 ## Optional tools
 
@@ -60,7 +66,7 @@ npm run tauri dev      # run with hot reload
 npm run tauri build    # make an installer for your OS
 ```
 
-To make a release, run `npm run release` (add `-- --notes-file notes.md` for release notes). It builds a signed installer and the `latest.json` file that installed copies check for updates, then prints the commands to publish them. Signing needs the private updater key, kept outside the repository (by default in `~/.tauri/shelf-updater.key`); without it, copies already out there can't be sent updates.
+To release for every platform, push a version tag (`git tag v0.2.0 && git push origin v0.2.0`): GitHub Actions builds Windows, macOS and Linux installers into a draft release, with `latest.json` for updates. It needs the updater key as the repository secret `TAURI_SIGNING_PRIVATE_KEY` (plus `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, which can be empty). For a Windows-only build on your own PC, run `npm run release` (add `-- --notes-file notes.md` for release notes). It builds a signed installer and the `latest.json` file that installed copies check for updates, then prints the commands to publish them. Signing needs the private updater key, kept outside the repository (by default in `~/.tauri/shelf-updater.key`); without it, copies already out there can't be sent updates.
 
 Run the checks before sending a pull request:
 

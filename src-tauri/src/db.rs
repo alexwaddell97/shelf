@@ -934,6 +934,20 @@ fn ends_with_title(a: &str, b: &str) -> bool {
 }
 
 /// True when a library book and a wished-for book are probably the same work.
+/// Stricter than `same_work`, for merging (which deletes files): the whole title must match
+/// (a series note in brackets aside), or one must be the other with a franchise name in front.
+/// A shared main title isn't enough: "Thrawn" and "Thrawn: Treason" are different books.
+pub fn same_book(title_a: &str, author_a: &str, title_b: &str, author_b: &str) -> bool {
+    let whole = |t: &str| normalize(without_article(&t[..t.find('(').unwrap_or(t.len())]));
+    let (ta, tb) = (whole(title_a), whole(title_b));
+    if ta.is_empty() || tb.is_empty() {
+        return false;
+    }
+    let titles_match = ta == tb || ends_with_title(title_a, title_b);
+    let (la, lb) = (last_name(author_a), last_name(author_b));
+    titles_match && (la.is_empty() || lb.is_empty() || la == lb)
+}
+
 pub fn same_work(title_a: &str, author_a: &str, title_b: &str, author_b: &str) -> bool {
     let (ta, tb) = (
         normalize(without_article(title_a)),

@@ -1,7 +1,11 @@
 <script lang="ts">
+  import { shortcut } from '$lib/platform';
   import { open } from '@tauri-apps/plugin-dialog';
   import {
     findCovers,
+    openUrl,
+    findDetails,
+    type FoundDetails,
     removeCover,
     setCoverFromFile,
     setCoverFromUrl,
@@ -73,6 +77,7 @@
       form = fromBook(b);
       problem = null;
       covers = { status: 'idle', items: [], error: null };
+      details = { status: 'idle', items: [], error: null };
     }
   });
 
@@ -263,6 +268,84 @@
   async function useCandidate(c: CoverCandidate) {
     await coverChange('Could not use that cover', () => setCoverFromUrl(id, c.url));
   }
+
+  // ---- Details from the web ----
+  // Found details are only offered: you pick which fields to take, and nothing is saved until
+  // you press Save. Empty fields (and a placeholder description) are ticked to start with.
+  type DetailField = 'description' | 'publisher' | 'published' | 'isbn' | 'language' | 'cover';
+  const DETAIL_LABELS: Record<DetailField, string> = {
+    description: 'Description',
+    publisher: 'Publisher',
+    published: 'Published',
+    isbn: 'ISBN',
+    language: 'Language',
+    cover: 'Cover'
+  };
+  let details = $state<{ status: 'idle' | 'loading' | 'done' | 'error'; items: FoundDetails[]; error: string | null }>({
+    status: 'idle',
+    items: [],
+    error: null
+  });
+  let pick = $state(0);
+  let ticked = $state<Partial<Record<DetailField, boolean>>>({});
+  const descriptionMissing = (d: string) => d.trim().length < 60;
+
+  /** The fields the chosen result would change: what it has, and what the form has now. */
+  const offers = $derived.by(() => {
+    const f = form;
+    const d = details.items.at(pick);
+    if (!f || !d) return [];
+    const rows: { field: DetailField; found: string; now: string }[] = [];
+    const add = (field: DetailField, found: string | null, now: string) => {
+      if (found && found.trim() && found.trim() !== now.trim()) rows.push({ field, found: found.trim(), now: now.trim() });
+    };
+    add('description', d.description, f.description);
+    add('publisher', d.publisher, f.publisher);
+    add('published', d.published, f.published);
+    add('isbn', d.isbn, f.isbn);
+    add('language', d.language, f.language);
+    if (d.coverUrl) rows.push({ field: 'cover', found: d.coverUrl, now: book?.coverPath ? 'has a cover' : '' });
+    return rows;
+  });
+
+  function choose(i: number) {
+    pick = i;
+    const f = form;
+    const next: Partial<Record<DetailField, boolean>> = {};
+    for (const o of offers) {
+      next[o.field] = o.field === 'description' ? !f || descriptionMissing(f.description) : o.now === '';
+    }
+    ticked = next;
+  }
+
+  async function findDetailsOnline() {
+    details = { status: 'loading', items: [], error: null };
+    const forId = id;
+    try {
+      const items = await findDetails(forId);
+      if (forId !== id) return;
+      details = { status: 'done', items, error: null };
+      choose(0);
+    } catch (e) {
+      if (forId === id) details = { status: 'error', items: [], error: errorMessage(e) };
+    }
+  }
+
+  async function useDetails() {
+    const f = form;
+    if (!f) return;
+    let cover: string | null = null;
+    for (const o of offers) {
+      if (!ticked[o.field]) continue;
+      if (o.field === 'cover') cover = o.found;
+      else f[o.field] = o.found;
+    }
+    details = { status: 'idle', items: [], error: null };
+    if (cover) {
+      const url = cover;
+      await coverChange('Could not use that cover', () => setCoverFromUrl(id, url));
+    }
+  }
 </script>
 
 {#if book && form}
@@ -270,8 +353,10 @@
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div class="editor" onkeydown={onKey}>
       <header>
-        <h2 id="editor-h">Edit metadata</h2>
-        <span class="pos mono">{position >= 0 ? `${position + 1} of ${siblings.length}` : ''}</span>
+        <div class="title">
+          <h2 id="editor-h">Edit metadata</h2>
+          <span class="pos mono">{position >= 0 ? `${position + 1} of ${siblings.length}` : ''}</span>
+        </div>
         <div class="steps">
           <button class="btn sm" disabled={prevId == null || saving} onclick={() => step(prevId)} title="Saves your changes, then goes to the previous book">
             <span class="flip"><Icon name="chevron" size={16} /></span>
@@ -289,6 +374,10 @@
         <div class="cover-col">
           <Cover title={form.title || book.title} author={form.author || book.author} coverPath={book.coverPath} />
           <div class="cover-btns">
+            <button class="btn sm primary" onclick={findDetailsOnline} disabled={details.status === 'loading'}>
+              <Icon name="search" size={15} />
+              Find details online
+            </button>
             <button class="btn sm" onclick={chooseImage} disabled={coverBusy}>Choose image…</button>
             <button class="btn sm" onclick={findOnline} disabled={coverBusy || covers.status === 'loading'}>Find covers online</button>
             <button class="btn sm ghost" onclick={() => coverChange('Could not remove the cover', () => removeCover(id))} disabled={coverBusy || !book.coverPath}>
@@ -322,6 +411,69 @@
             void saveAndClose();
           }}
         >
+          {#if details.status !== 'idle'}
+            <section class="found" aria-label="Details found online">
+              {#if details.status === 'loading'}
+                <p class="cover-note" role="status"><span class="spin ring"></span>Looking on Open Library…</p>
+              {:else if details.status === 'error'}
+                <p class="cover-note bad" role="alert">{details.error}</p>
+              {:else if details.items.length === 0}
+                <p class="cover-note">Nothing found for this title and author. Adding the ISBN, if you have it, can help.</p>
+              {:else}
+                <div class="found-head">
+                  <strong>Found online</strong>
+                  <div class="sources" role="radiogroup" aria-label="Result">
+                    {#each details.items as d, i (i)}
+                      <button
+                        type="button"
+                        class="source"
+                        class:on={pick === i}
+                        role="radio"
+                        aria-checked={pick === i}
+                        title="{d.title} · {d.author}"
+                        onclick={() => choose(i)}
+                      >
+                        {d.source}{d.byIsbn ? ' · ISBN match' : ''}{d.published ? ` · ${d.published.slice(0, 4)}` : ''}
+                      </button>
+                    {/each}
+                  </div>
+                </div>
+                {#if offers.length === 0}
+                  <p class="cover-note">This result has nothing that isn't already filled in.</p>
+                {:else}
+                  <ul class="offers">
+                    {#each offers as o (o.field)}
+                      <li>
+                        <label class="offer">
+                          <input type="checkbox" bind:checked={ticked[o.field]} />
+                          <span class="offer-name">{DETAIL_LABELS[o.field]}</span>
+                          {#if o.field === 'cover'}
+                            <img class="offer-cover" src={o.found.replace('-L.jpg', '-M.jpg')} alt="Cover found online" referrerpolicy="no-referrer" />
+                          {:else}
+                            <span class="offer-value" class:clamp={o.field === 'description'}>{o.found}</span>
+                          {/if}
+                          {#if o.now && o.field === 'description'}
+                            <span class="offer-now">Replaces the current description</span>
+                          {:else if o.now}
+                            <span class="offer-now">Now: {o.now}</span>
+                          {/if}
+                        </label>
+                      </li>
+                    {/each}
+                  </ul>
+                {/if}
+                <div class="found-actions">
+                  {#if details.items.at(pick)?.link}
+                    <button type="button" class="found-link" onclick={() => { const l = details.items.at(pick)?.link; if (l) void attempt('Could not open the link', () => openUrl(l)); }}>View on {details.items.at(pick)?.source}</button>
+                  {/if}
+                  <span class="grow"></span>
+                  <button type="button" class="btn sm" onclick={() => (details = { status: 'idle', items: [], error: null })}>Dismiss</button>
+                  <button type="button" class="btn sm primary" disabled={!offers.some((o) => ticked[o.field])} onclick={useDetails}>Use selected</button>
+                </div>
+              {/if}
+            </section>
+          {/if}
+
           <div class="field">
             <label for="ed-title">Title</label>
             <input id="ed-title" class="input" bind:value={form.title} required data-autofocus />
@@ -421,7 +573,7 @@
           <span class="grow"></span>
         {/if}
         <button class="btn" onclick={close} disabled={saving}>Cancel</button>
-        <button class="btn primary" onclick={saveAndClose} disabled={saving} title="Ctrl+S">
+        <button class="btn primary" onclick={saveAndClose} disabled={saving} title={shortcut('S')}>
           {saving ? 'Saving…' : dirty ? 'Save' : 'Done'}
         </button>
       </footer>
@@ -451,8 +603,15 @@
     font-weight: 700;
     letter-spacing: -0.01em;
   }
-  .pos {
+  /* The title and its "5 of 329" share a baseline, whatever their fonts. */
+  .title {
     flex: 1;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    min-width: 0;
+  }
+  .pos {
     font-size: 12px;
     color: var(--faint);
   }
@@ -496,6 +655,106 @@
   }
   .cover-btns .btn {
     width: 100%;
+  }
+  /* Details found online: pick a result, tick the fields to take. */
+  .found {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px 16px;
+    border-radius: var(--r2);
+    background: var(--accent-bg);
+  }
+  .found-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+  }
+  .sources {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .source {
+    height: 28px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--fill);
+    color: var(--text-soft);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .source.on {
+    background: var(--accent);
+    color: var(--on-accent);
+    font-weight: 600;
+  }
+  .offers {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .offer {
+    display: grid;
+    grid-template-columns: 18px 92px minmax(0, 1fr);
+    align-items: start;
+    column-gap: 10px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .offer input {
+    margin: 2px 0 0;
+  }
+  .offer-name {
+    font-weight: 600;
+  }
+  .offer-value {
+    color: var(--text-soft);
+    white-space: pre-line;
+    word-break: break-word;
+  }
+  .offer-value.clamp {
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .offer-cover {
+    width: 48px;
+    border-radius: 3px;
+    box-shadow: var(--shadow-1);
+  }
+  .offer-now {
+    grid-column: 3;
+    font-size: 12px;
+    color: var(--faint);
+  }
+  .found-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+  .found-actions .grow {
+    flex: 1;
+  }
+  .found-link {
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: 12px;
+    color: var(--accent);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    cursor: pointer;
   }
   .cover-note {
     font-size: 13px;

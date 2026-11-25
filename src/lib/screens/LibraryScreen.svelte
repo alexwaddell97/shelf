@@ -1,5 +1,6 @@
 <script lang="ts">
   import BookCard from '$lib/components/BookCard.svelte';
+  import DuplicatesDialog from '$lib/components/DuplicatesDialog.svelte';
   import Icon from '$lib/components/Icon.svelte';
   import ListView from '$lib/components/ListView.svelte';
   import ShelfView from '$lib/components/ShelfView.svelte';
@@ -48,6 +49,8 @@
     ['list', 'List', 'list']
   ];
 
+  let showDuplicates = $state(false);
+
   const open = (book: Book) => nav.openBook(book.id, scope ? { kind: 'scope', scope } : { kind: 'library' }, siblings);
 
   function pickSort(sort: LibrarySort, reversed = false) {
@@ -58,6 +61,10 @@
   /** A column heading was clicked: sort by it, or flip it if it's already the sort. */
   const sortBy = (sort: LibrarySort) => pickSort(sort, sort === order.sort ? !order.reversed : false);
 </script>
+
+{#if showDuplicates}
+  <DuplicatesDialog onclose={() => (showDuplicates = false)} />
+{/if}
 
 <section aria-labelledby="lib-h">
   {#if scope}
@@ -100,6 +107,9 @@
         </p>
       </div>
       <div class="tools">
+        {#if !scope}
+          <button class="btn sm ghost" onclick={() => (showDuplicates = true)} title="Find books you have more than one copy of">Find duplicates</button>
+        {/if}
         <div class="views" role="group" aria-label="Layout">
           {#each VIEWS as [id, label, icon] (id)}
             {@const on = library.view === id}

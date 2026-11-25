@@ -4,12 +4,14 @@ mod commands;
 mod covers;
 mod db;
 mod devices;
+mod duplicates;
 mod epub;
 mod epub_write;
 mod error;
 mod goodreads;
 mod kepub;
 mod library;
+mod metadata;
 mod model;
 mod open_with;
 mod reader;
@@ -48,6 +50,7 @@ pub fn run() {
             commands::get_book,
             commands::import_files,
             commands::update_book,
+            commands::update_books,
             commands::delete_book,
             commands::reveal_book,
             commands::open_book,
@@ -84,6 +87,11 @@ pub fn run() {
             commands::set_cover_from_url,
             commands::remove_cover,
             commands::find_covers,
+            commands::find_details,
+            commands::find_duplicates,
+            commands::merge_duplicates,
+            commands::ignore_duplicates,
+            commands::fill_missing_details,
             commands::take_pending_open,
             commands::open_default_apps_settings,
             commands::open_reader,

@@ -4,14 +4,17 @@ use crate::calibre;
 use crate::catalog;
 use crate::covers;
 use crate::db;
+use crate::duplicates;
 use crate::devices::{self, kobo};
 use crate::error::{Error, Result};
 use crate::goodreads;
 use crate::library;
+use crate::metadata;
 use crate::model::*;
 use crate::state::AppState;
 use crate::tools;
 use crate::watcher;
+use serde::Serialize;
 use std::path::PathBuf;
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_opener::OpenerExt;
@@ -54,6 +57,34 @@ pub fn update_book(
     let book = db::get_book(&conn, id)?;
     let _ = app.emit("library-changed", ());
     Ok(book)
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct BookUpdate {
+    pub id: i64,
+    pub patch: BookPatch,
+}
+
+/// Saves edits to many books at once (bulk edit): one transaction, one refresh.
+#[tauri::command]
+pub async fn update_books(app: AppHandle, updates: Vec<BookUpdate>) -> Result<usize> {
+    blocking(move || {
+        let state = app.state::<AppState>();
+        let mut conn = state.db();
+        let tx = conn.transaction()?;
+        let mut changed = 0;
+        for u in &updates {
+            if db::update_book(&tx, u.id, &u.patch)? {
+                db::requeue_on_devices(&tx, u.id)?;
+                changed += 1;
+            }
+        }
+        tx.commit()?;
+        drop(conn);
+        let _ = app.emit("library-changed", ());
+        Ok(changed)
+    })
+    .await
 }
 
 #[tauri::command]
@@ -468,6 +499,116 @@ pub async fn find_covers(
 ) -> Result<Vec<covers::CoverCandidate>> {
     let book = db::get_book(&state.db(), id)?;
     covers::search(&state.http, &book.title, &book.author).await
+}
+
+// --- Duplicates ---
+
+#[tauri::command]
+pub async fn find_duplicates(app: AppHandle) -> Result<Vec<duplicates::Group>> {
+    blocking(move || duplicates::find(&app.state::<AppState>().db())).await
+}
+
+#[tauri::command]
+pub async fn merge_duplicates(app: AppHandle, keep: i64, remove: Vec<i64>) -> Result<Book> {
+    blocking(move || {
+        let book = duplicates::merge(&app.state::<AppState>(), keep, &remove)?;
+        let _ = app.emit("library-changed", ());
+        Ok(book)
+    })
+    .await
+}
+
+#[tauri::command]
+pub fn ignore_duplicates(state: State<'_, AppState>, ids: Vec<i64>) -> Result<()> {
+    duplicates::ignore(&state.db(), &ids)
+}
+
+// --- Book details from the web ---
+
+#[tauri::command]
+pub async fn find_details(state: State<'_, AppState>, id: i64) -> Result<Vec<metadata::Found>> {
+    let book = db::get_book(&state.db(), id)?;
+    metadata::lookup(&state.http, &book).await
+}
+
+#[derive(Debug, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FillReport {
+    /// Books that got at least one new detail or a cover.
+    pub updated: usize,
+    pub covers: usize,
+    /// Books no source recognised.
+    pub not_found: usize,
+    pub failed: usize,
+}
+
+/// Fills in the empty fields (and missing covers) of many books, one at a time so the
+/// sources aren't flooded. Reports progress as "details-progress".
+#[tauri::command]
+pub async fn fill_missing_details(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    ids: Vec<i64>,
+) -> Result<FillReport> {
+    let mut report = FillReport::default();
+    let total = ids.len();
+    for (done, id) in ids.into_iter().enumerate() {
+        let Ok(book) = db::get_book(&state.db(), id) else {
+            report.failed += 1;
+            continue;
+        };
+        let _ = app.emit(
+            "details-progress",
+            SyncProgress {
+                device_id: String::new(),
+                phase: "details",
+                done,
+                total,
+                current: Some(book.title.clone()),
+            },
+        );
+        let found = match metadata::lookup(&state.http, &book).await {
+            Ok(found) => found,
+            Err(_) => {
+                report.failed += 1;
+                continue;
+            }
+        };
+        if found.is_empty() {
+            report.not_found += 1;
+            continue;
+        }
+        let patch = metadata::fill_gaps(&book, &found);
+        let mut changed = metadata::fills_anything(&patch);
+        if changed {
+            let conn = state.db();
+            if db::update_book(&conn, id, &patch)? {
+                // The e-reader's copy carries these details, so send it again.
+                db::requeue_on_devices(&conn, id)?;
+            }
+        }
+        if book.cover_path.is_none() {
+            if let Some(url) = metadata::first_cover(&found) {
+                if let Ok(bytes) = covers::download(&state.http, &url).await {
+                    if covers::save(&state, id, &bytes).is_ok() {
+                        report.covers += 1;
+                        changed = true;
+                    }
+                }
+            }
+        }
+        if changed {
+            report.updated += 1;
+        }
+        // Refresh the library now and then so changes show as they land.
+        if done % 10 == 9 {
+            let _ = app.emit("library-changed", ());
+        }
+        // About a book a second: Open Library asks bulk users to go gently.
+        tokio::time::sleep(std::time::Duration::from_millis(800)).await;
+    }
+    let _ = app.emit("library-changed", ());
+    Ok(report)
 }
 
 // --- Opening files with Shelf ---

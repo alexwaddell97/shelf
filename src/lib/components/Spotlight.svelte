@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { MOD } from '$lib/platform';
   import { tick } from 'svelte';
   import type { Book } from '$lib/api';
   import { authorEntries, seriesLabel, statusLabel } from '$lib/format';
@@ -272,7 +273,7 @@
     </div>
 
     <div class="keys mono" aria-hidden="true">
-      <span>↑↓ move</span><span>↵ open</span><span>Ctrl ↵ read</span><span>esc close</span>
+      <span>↑↓ move</span><span>↵ open</span><span>{MOD} ↵ read</span><span>esc close</span>
     </div>
   </div>
 {/if}

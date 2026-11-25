@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { MOD, shortcut } from '$lib/platform';
   import type { Book } from '$lib/api';
   import { authorEntries, seriesLabel } from '$lib/format';
   import { highlight, searchBooks, searchNames, tokenize } from '$lib/search';
@@ -202,7 +203,7 @@
     {oninput}
     {onkeydown}
   />
-  <button class="hint mono" title="Open Spotlight search (Ctrl+K)" onclick={() => spotlight.show()}>Ctrl K</button>
+  <button class="hint mono" title="Open Spotlight search ({shortcut('K')})" onclick={() => spotlight.show()}>{MOD} K</button>
 
   {#if open}
     <div class="panel" id="search-suggestions" role="listbox" aria-label="Suggestions">

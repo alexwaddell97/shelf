@@ -63,6 +63,7 @@
 </script>
 
 <script lang="ts">
+  import { MOD } from '$lib/platform';
   import { tick } from 'svelte';
   import type { Book } from '$lib/api';
   import {
@@ -79,6 +80,8 @@
   import { popover } from '$lib/popover';
   import { settledWidth } from '$lib/settledWidth';
   import { bookActions } from '$lib/stores/bookActions.svelte';
+  import { details } from '$lib/stores/details.svelte';
+  import BulkEditor from './BulkEditor.svelte';
   import { devices } from '$lib/stores/devices.svelte';
   import { authorScope, nav, seriesScope } from '$lib/stores/nav.svelte';
   import ClampText from './ClampText.svelte';
@@ -103,6 +106,41 @@
 
   let selectedId = $state<number | null>(null);
   const selected = $derived(books.find((b) => b.id === selectedId) ?? books[0] ?? null);
+
+  // Several books at once: Ctrl/Cmd-click adds or removes one, Shift-click takes a range,
+  // Ctrl/Cmd+A takes them all, Escape clears. `picked` only counts once two are chosen.
+  let picked = $state<Set<number>>(new Set());
+  let anchorId: number | null = null;
+  let bulkOpen = $state(false);
+  const pickedInOrder = $derived(books.filter((b) => picked.has(b.id)).map((b) => b.id));
+  const multi = $derived(pickedInOrder.length > 1);
+
+  function clickRow(e: MouseEvent, book: Book) {
+    if (e.shiftKey) {
+      const from = books.findIndex((b) => b.id === (anchorId ?? selected?.id));
+      const to = books.findIndex((b) => b.id === book.id);
+      if (from >= 0 && to >= 0) {
+        const [a, z] = from < to ? [from, to] : [to, from];
+        picked = new Set(books.slice(a, z + 1).map((b) => b.id));
+      }
+    } else if (e.ctrlKey || e.metaKey) {
+      const next = new Set(picked.size ? picked : selected ? [selected.id] : []);
+      if (next.has(book.id)) next.delete(book.id);
+      else next.add(book.id);
+      picked = next;
+      anchorId = book.id;
+    } else {
+      picked = new Set();
+      anchorId = book.id;
+    }
+    void select(book);
+  }
+
+  function clearPicked() {
+    picked = new Set();
+  }
+
+  const connected = $derived(devices.connected[0] ?? null);
   let listEl = $state<HTMLDivElement | null>(null);
 
   let chosen = $state<ColumnId[]>(loadColumns());
@@ -217,6 +255,12 @@
     else if (e.key === 'Enter') {
       e.preventDefault();
       onopen(selected);
+    } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a') {
+      e.preventDefault();
+      picked = new Set(books.map((b) => b.id));
+    } else if (e.key === 'Escape' && picked.size) {
+      e.preventDefault();
+      clearPicked();
     } else if (!e.ctrlKey && !e.metaKey && !e.altKey && typeahead(e.key)) e.preventDefault();
   }
 
@@ -318,6 +362,7 @@
       class="list"
       role="listbox"
       tabindex="0"
+      aria-multiselectable="true"
       aria-label="Books"
       aria-activedescendant={selected ? `book-row-${selected.id}` : undefined}
       bind:this={listEl}
@@ -332,10 +377,11 @@
           data-id={book.id}
           class="row"
           class:on
+          class:picked={multi && picked.has(book.id)}
           role="option"
-          aria-selected={on}
+          aria-selected={multi ? picked.has(book.id) : on}
           tabindex="-1"
-          onclick={() => select(book)}
+          onclick={(e) => clickRow(e, book)}
           ondblclick={() => onopen(book)}
           oncontextmenu={(e) => oncontextmenu(e, book)}
           onkeydown={() => {}}
@@ -411,7 +457,25 @@
         </div>
       {/each}
     </div>
+
+    {#if multi}
+      <div class="picked-bar" role="toolbar" aria-label="Selected books">
+        <span class="picked-count">{pickedInOrder.length} selected</span>
+        <button class="btn sm primary" onclick={() => (bulkOpen = true)}>Edit…</button>
+        <button class="btn sm" onclick={() => details.fill(pickedInOrder)} disabled={details.running}>Fill in missing details</button>
+        {#if connected}
+          <button class="btn sm" onclick={() => bookActions.sendMany(pickedInOrder, connected)}>Send to {connected.name}</button>
+        {/if}
+        <span class="grow"></span>
+        <button class="btn sm ghost" onclick={() => (picked = new Set(books.map((b) => b.id)))}>Select all {books.length}</button>
+        <button class="btn sm ghost" onclick={clearPicked}>Clear</button>
+      </div>
+    {/if}
   </div>
+
+  {#if bulkOpen}
+    <BulkEditor ids={pickedInOrder} onclose={() => (bulkOpen = false)} />
+  {/if}
 
   {#if selected}
     {@const book = selected}
@@ -462,6 +526,8 @@
           {#each book.tags as name (name)}<span class="chip">{name}</span>{/each}
         </div>
       {/if}
+
+      <p class="multi-tip">{MOD}-click or Shift-click to select several books and edit them together.</p>
 
       {#if book.description}
         <div class="description">
@@ -534,6 +600,33 @@
   .row.on {
     background: var(--accent-bg-strong);
     box-shadow: inset 3px 0 0 var(--accent);
+  }
+  .row.picked {
+    background: var(--accent-bg);
+    box-shadow: inset 3px 0 0 var(--accent);
+  }
+  /* Actions for a multi-selection: sticks to the bottom of the window under the list. */
+  .picked-bar {
+    position: sticky;
+    bottom: 16px;
+    z-index: 3;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 8px;
+    padding: 10px 12px;
+    border-radius: 18px;
+    background: var(--glass-thick);
+    backdrop-filter: var(--glass-filter);
+    box-shadow: var(--glass-shadow-lift);
+  }
+  .picked-count {
+    padding: 0 6px;
+    font-weight: 700;
+  }
+  .picked-bar .grow {
+    flex: 1;
   }
   .compact .row {
     min-height: 40px;
@@ -962,6 +1055,11 @@
   .chip.collection {
     background: var(--accent-bg);
     color: var(--accent);
+  }
+  .multi-tip {
+    margin: 0;
+    font-size: 12px;
+    color: var(--faint);
   }
   .description {
     margin: 0;

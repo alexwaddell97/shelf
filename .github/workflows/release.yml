@@ -1,7 +1,12 @@
 name: Release
 
-# Builds installers for Windows, macOS and Linux and attaches them to a draft
-# GitHub release when a version tag (v0.1.0, ...) is pushed.
+# Builds installers for Windows, macOS (Apple Silicon and Intel) and Linux and attaches
+# them to a draft GitHub release when a version tag (v0.2.0, ...) is pushed. It also
+# writes latest.json, which installed copies check for updates.
+#
+# Needs repository secrets: TAURI_SIGNING_PRIVATE_KEY (the contents of
+# ~/.tauri/shelf-updater.key) and TAURI_SIGNING_PRIVATE_KEY_PASSWORD (empty is fine, but
+# the secret must exist). Without the key the build stops, because every update is signed.
 on:
   push:
     tags: ['v*']
@@ -50,6 +55,8 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: Shelf ${{ github.ref_name }}
@@ -57,3 +64,6 @@ jobs:
           releaseDraft: true
           prerelease: true
           args: ${{ matrix.args }}
+          includeUpdaterJson: true
+          # Windows updates use the same NSIS installer people download.
+          updaterJsonPreferNsis: true

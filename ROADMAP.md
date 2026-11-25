@@ -18,9 +18,9 @@ What calibre and other tools offer that Shelf doesn't yet. **Value** is to someo
 
 | Feature | calibre | Other tools | Shelf today | Value |
 |---|---|---|---|---|
-| Download metadata and covers (Open Library, Google Books, Hardcover…) | Yes | Calibre-Web Automated, BookLore | Covers only, from the catalogue | **High** |
-| Duplicate detection and merge | Plugin (Find Duplicates) | Calibre-Web Automated | Exact-file duplicates only | **High** |
-| Bulk metadata editing | Yes | Calibre-Web Automated | One book at a time | **High** |
+| Download metadata and covers (Open Library, Google Books, Hardcover…) | Yes | Calibre-Web Automated, BookLore | Open Library, with a field-by-field preview and bulk "fill in what's missing" (0.2) | Done |
+| Duplicate detection and merge | Plugin (Find Duplicates) | Calibre-Web Automated | Same ISBN or same title and author, merged keeping everything (0.2) | Done |
+| Bulk metadata editing | Yes | Calibre-Web Automated | Author, series with numbering, tags, collections, rating (0.2) | Done |
 | Smart shelves and saved searches (`author:`, `rating:>3`…) | Virtual libraries, search syntax | "Magic shelves" in CWA and BookLore | Filters, no saved searches | **High** |
 | Kobo highlights and annotations export | Plugin | Readwise (Kobo store books only) | No | **High** |
 | Kindle (USB and Send to Kindle email) | Yes | CWA (email) | No | **High** |
@@ -50,13 +50,21 @@ The research behind this table comes partly from the projects' own pages and par
 
 ### 0.2: trust and tidying
 
-Make a large library easy to clean up, and make Shelf safe to rely on.
+Make a large library easy to clean up, and make Shelf safe to rely on. See the [changelog](CHANGELOG.md).
 
-- **Download metadata and covers** from Open Library and Google Books (Hardcover later). Show what would change, with "fill in gaps only" and batch modes.
-- **Duplicate finder.** Match on ISBN, then on title and author (reusing the wishlist matcher), and merge duplicates while keeping the better file.
-- **Bulk edit.** Multi-select, then set series, tags, collections or author for all of them, with find and replace and series numbering.
+Done in 0.2.0:
+
+- **Metadata and covers** from Open Library, with a field-by-field preview in the editor and "fill in what's missing" for many books. Google Books was tried, but without an API key its shared free quota runs out daily; an optional key of your own may come later.
+- **Duplicate finder.** Same ISBN, or the same whole title and author (a different subtitle means a different book), merged keeping every copy's tags, collections, progress and details.
+- **Bulk edit.** Multi-select in the list, then set author, series (numbered in order), tags, collections or rating.
+- **macOS builds** for Apple Silicon and Intel, from GitHub Actions.
+- **Auto-update** with signed updates.
+
+Still to come in 0.2.x:
+
 - **Backup and restore.** One-click export of the library and settings, plus an OPF sidecar next to each book so the library stays readable without Shelf.
-- **Code-signed Windows installer and auto-update.** This removes the SmartScreen warning.
+- **Code signing** for Windows (or a Microsoft Store listing) and macOS (an Apple Developer ID), to remove the "unknown publisher" warnings.
+- **Find and replace** in bulk edit.
 
 ### 0.3: your reading life
 

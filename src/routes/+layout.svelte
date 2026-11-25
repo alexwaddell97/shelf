@@ -22,6 +22,7 @@
   import { theme } from '$lib/stores/theme.svelte';
   import { ui } from '$lib/stores/ui.svelte';
   import UpdatePrompt from '$lib/components/UpdatePrompt.svelte';
+  import DetailsPanel from '$lib/components/DetailsPanel.svelte';
 
   let { children }: { children: Snippet } = $props();
 
@@ -66,6 +67,7 @@
 {/if}
 <div class="floating">
   <UpdatePrompt />
+  <DetailsPanel />
   <SyncPanel />
   <CalibrePanel />
   <ImportPanel />

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Merged into the macOS app bundle by Tauri. macOS asks before an app reads removable
+     drives, Documents or Downloads; these lines are what it shows when it asks. -->
+<plist version="1.0">
+<dict>
+  <key>NSRemovableVolumesUsageDescription</key>
+  <string>Shelf looks for your e-reader when you plug it in, to send books and read your reading progress.</string>
+  <key>NSDocumentsFolderUsageDescription</key>
+  <string>Shelf keeps your ebook library in a folder in Documents.</string>
+  <key>NSDownloadsFolderUsageDescription</key>
+  <string>Shelf watches Downloads so new ebooks are added to your library automatically.</string>
+</dict>
+</plist>

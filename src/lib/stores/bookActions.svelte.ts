@@ -66,6 +66,15 @@ class BookActions {
     );
   }
 
+  /** Queues several books (a multi-selection) for the device. */
+  sendMany(ids: number[], device: Device) {
+    return run(
+      `Could not queue the books for ${device.name}`,
+      () => queueForDevice(device.id, ids),
+      `Queued ${ids.length} books. They go to your ${device.name} on the next sync.`
+    );
+  }
+
   cancelSend(book: Book, deviceId: string) {
     return run('Could not cancel sending', () => unqueue(deviceId, book.id), 'Removed from the send queue.');
   }
