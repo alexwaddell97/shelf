@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import { trapFocus } from '$lib/actions';
+  import { portal, trapFocus } from '$lib/actions';
 
   interface Props {
     /** id of the heading inside that names the dialog */
@@ -21,6 +21,7 @@
 <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
 <div
   class="scrim"
+  use:portal
   onpointerdown={(e) => (pressedScrim = e.target === e.currentTarget)}
   onclick={(e) => {
     if (pressedScrim && e.target === e.currentTarget) onclose?.();

@@ -54,3 +54,18 @@ export const trapFocus: Action<HTMLElement, (() => void) | undefined> = (node, o
     }
   };
 };
+
+/**
+ * Moves the element to the end of `<body>`. Overlays (dialogs, their backdrop) use it so
+ * that no screen they're declared in can trap them: an ancestor with a transform, filter
+ * or opacity animation would otherwise pin `position: fixed` to itself and limit what a
+ * backdrop blur can see.
+ */
+export const portal: Action<HTMLElement> = (node) => {
+  document.body.appendChild(node);
+  return {
+    destroy() {
+      node.remove();
+    }
+  };
+};

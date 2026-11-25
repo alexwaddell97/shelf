@@ -649,9 +649,11 @@ select.input {
     transform: rotate(360deg);
   }
 }
-/* A screen settling into place when you switch views. */
+/* A screen settling into place when you switch views. Only the start is held (backwards):
+   holding the end would leave a transform on the screen, which traps anything fixed-position
+   inside it, such as a dialog's backdrop. */
 .view-in {
-  animation: view-in 220ms var(--ease) both;
+  animation: view-in 220ms var(--ease) backwards;
 }
 @keyframes view-in {
   from {

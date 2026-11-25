@@ -10,7 +10,7 @@
     type BookPatch,
     type CoverCandidate
   } from '$lib/api';
-  import { errorMessage } from '$lib/format';
+  import { errorMessage, languageName } from '$lib/format';
   import { devices } from '$lib/stores/devices.svelte';
   import { labels } from '$lib/stores/labels.svelte';
   import { library } from '$lib/stores/library.svelte';
@@ -385,20 +385,22 @@
             </div>
             <div class="field grow">
               <label for="ed-published">Published</label>
-              <input id="ed-published" class="input" bind:value={form.published} placeholder="2015 or 2015-06-30" inputmode="numeric" />
+              <input id="ed-published" class="input" bind:value={form.published} placeholder="e.g. 2015 or 2015-06-30" inputmode="numeric" />
             </div>
           </div>
           <div class="row">
             <div class="field grow">
-              <label for="ed-language">Language</label>
-              <input id="ed-language" class="input" bind:value={form.language} list="ed-languages" placeholder="en" />
+              <label for="ed-language">
+                Language{#if languageName(form.language) && languageName(form.language) !== form.language.trim()}<span class="label-hint">· {languageName(form.language)}</span>{/if}
+              </label>
+              <input id="ed-language" class="input" bind:value={form.language} list="ed-languages" placeholder="A code, e.g. en" />
               <datalist id="ed-languages">
                 {#each ['en', 'fr', 'de', 'es', 'it', 'nl', 'pt', 'ru', 'ja', 'zh'] as l (l)}<option value={l}></option>{/each}
               </datalist>
             </div>
             <div class="field grow">
               <label for="ed-isbn">ISBN</label>
-              <input id="ed-isbn" class="input mono" bind:value={form.isbn} placeholder="9780000000000" />
+              <input id="ed-isbn" class="input mono" bind:value={form.isbn} placeholder="10 or 13 digits" />
             </div>
           </div>
 
@@ -428,10 +430,15 @@
 {/if}
 
 <style>
+  /* Header and footer stay put and only the middle scrolls, so the scrollbar keeps clear of
+     the window's rounded corners. */
+  .editor {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 32px);
+  }
   header {
-    position: sticky;
-    top: 0;
-    z-index: 2;
+    flex: none;
     background: var(--surface-modal);
     display: flex;
     align-items: center;
@@ -457,12 +464,23 @@
     display: flex;
     transform: scaleX(-1);
   }
+  /* A solid sheet like the header: a form over frosted glass shows the page's shapes
+     moving behind the fields. */
   .cols {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    background: var(--surface-modal);
     display: flex;
     flex-wrap: wrap;
     gap: 28px;
     padding: 20px;
     align-items: flex-start;
+  }
+  .label-hint {
+    margin-left: 5px;
+    font-weight: 400;
+    color: var(--faint);
   }
   .cover-col {
     flex: 0 1 230px;
@@ -552,9 +570,7 @@
     color: var(--faint);
   }
   footer {
-    position: sticky;
-    bottom: 0;
-    z-index: 2;
+    flex: none;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
