@@ -414,9 +414,16 @@
           {#if details.status !== 'idle'}
             <section class="found" aria-label="Details found online">
               {#if details.status === 'loading'}
-                <p class="cover-note" role="status"><span class="spin ring"></span>Looking on Open Library…</p>
+                <p class="cover-note" role="status">
+                  <span class="spin ring"></span>Looking on Open Library… When it's busy this can take up to a minute.
+                </p>
               {:else if details.status === 'error'}
                 <p class="cover-note bad" role="alert">{details.error}</p>
+                <div class="found-actions">
+                  <span class="grow"></span>
+                  <button type="button" class="btn sm" onclick={() => (details = { status: 'idle', items: [], error: null })}>Dismiss</button>
+                  <button type="button" class="btn sm primary" onclick={findDetailsOnline}>Try again</button>
+                </div>
               {:else if details.items.length === 0}
                 <p class="cover-note">Nothing found for this title and author. Adding the ISBN, if you have it, can help.</p>
               {:else}

@@ -13,8 +13,10 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
-/// Open Library's search can take well over ten seconds at busy times.
-const TIMEOUT: Duration = Duration::from_secs(30);
+/// Open Library's search can take well over ten seconds at busy times, and sometimes
+/// doesn't accept the connection at all; a few patient tries get through most of those.
+const TIMEOUT: Duration = Duration::from_secs(40);
+const RETRY_PAUSES: [Duration; 2] = [Duration::from_secs(2), Duration::from_secs(5)];
 
 /// Details found for a book.
 #[derive(Debug, Clone, Default, Serialize)]
@@ -101,19 +103,27 @@ async fn get_once<T: DeserializeOwned>(http: &reqwest::Client, url: &str) -> Res
         .await?)
 }
 
-/// One retry after a pause when Open Library is slow or busy (a timeout, 429 or 5xx).
+/// Worth trying again: Open Library was slow, refused the connection, or said it's busy.
+fn transient(e: &Error) -> bool {
+    matches!(e, Error::Http(e) if e.is_timeout()
+        || e.is_connect()
+        || e.is_request()
+        || e.status().is_some_and(|s| s.is_server_error() || s.as_u16() == 429))
+}
+
+/// Up to three tries, with growing pauses, when Open Library is slow or busy.
 async fn get<T: DeserializeOwned>(http: &reqwest::Client, url: &str) -> Result<T> {
-    match get_once(http, url).await {
-        Err(Error::Http(e))
-            if e.is_timeout()
-                || e.is_connect()
-                || e.status().is_some_and(|s| s.is_server_error() || s.as_u16() == 429) =>
-        {
-            tokio::time::sleep(Duration::from_secs(2)).await;
-            get_once(http, url).await
+    let mut result = get_once(http, url).await;
+    for pause in RETRY_PAUSES {
+        match &result {
+            Err(e) if transient(e) => {
+                tokio::time::sleep(pause).await;
+                result = get_once(http, url).await;
+            }
+            _ => break,
         }
-        other => other,
     }
+    result
 }
 
 /// The title to search with: without its subtitle or series note, which Open Library's
@@ -327,7 +337,7 @@ pub async fn lookup(http: &reqwest::Client, book: &Book) -> Result<Vec<Found>> {
     }
     if found.is_empty() && failed {
         return Err(Error::msg(
-            "Couldn't reach Open Library, or it was too slow to answer. Try again in a minute.",
+            "Open Library didn't answer after several tries. It's sometimes overloaded: try again in a few minutes.",
         ));
     }
     // The same edition can come back from the ISBN and the title search.
@@ -399,6 +409,28 @@ mod tests {
         assert_eq!(ol_language(Some("fr")), "fre");
         assert_eq!(search_title("Holy Island: A DCI Ryan Mystery (Book 1)"), "Holy Island");
         assert_eq!(search_title("Piranesi"), "Piranesi");
+    }
+
+    /// Talks to the real Open Library: `cargo test live_lookup -- --ignored --nocapture`.
+    #[tokio::test]
+    #[ignore = "needs the internet and a working Open Library"]
+    async fn live_lookup() {
+        let http = reqwest::Client::builder()
+            .user_agent("Shelf test (https://github.com/alexwaddell97/shelf)")
+            .build()
+            .unwrap();
+        let book = Book {
+            title: "The Three Body Problem".into(),
+            author: "Cixin Liu".into(),
+            ..Default::default()
+        };
+        let started = std::time::Instant::now();
+        let found = lookup(&http, &book).await.expect("lookup failed");
+        println!("{} results in {:?}", found.len(), started.elapsed());
+        for f in &found {
+            println!("{:?} {:?} {:?} {:?}", f.title, f.publisher, f.published, f.isbn);
+        }
+        assert!(!found.is_empty());
     }
 
     #[test]
