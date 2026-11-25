@@ -173,7 +173,7 @@
           <h1 id="book-h" class="title">{book.title}</h1>
           <p class="author">
             {#each authorEntries(book) as a, i (a.key)}
-              {#if i > 0}<span class="amp"> &amp; </span>{/if}<button class="author-link" onclick={() => nav.showScope(authorScope(a.key, a.name))}>{a.name}</button>
+              {#if i > 0}<span class="amp">{' & '}</span>{/if}<button class="author-link" onclick={() => nav.showScope(authorScope(a.key, a.name))}>{a.name}</button>
             {/each}
           </p>
           {#if book.rating}

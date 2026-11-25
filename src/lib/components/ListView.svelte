@@ -395,7 +395,7 @@
             {#if !has('author') || (!has('series') && series)}
               <span class="author">
                 {#if !has('author')}{book.author}{/if}
-                {#if !has('series') && series}{#if !has('author')}<span class="amp"> · </span>{/if}<span class="under-series mono">{series}</span>{/if}
+                {#if !has('series') && series}{#if !has('author')}<span class="amp">{' · '}</span>{/if}<span class="under-series mono">{series}</span>{/if}
               </span>
             {/if}
           </span>
@@ -403,7 +403,7 @@
             {#if c.id === 'author'}
               <span class="cell" title={book.author}>
                 {#each authorEntries(book) as a, i (a.key)}
-                  {#if i > 0}<span class="amp"> &amp; </span>{/if}<span
+                  {#if i > 0}<span class="amp">{' & '}</span>{/if}<span
                     class="link"
                     role="link"
                     tabindex="-1"

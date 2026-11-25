@@ -315,6 +315,8 @@ body {
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  /* Checkboxes, radios and range sliders in the theme's colour, not the browser's blue. */
+  accent-color: var(--accent);
 }
 
 /* Calm theme changes: colours ease over instead of snapping. */

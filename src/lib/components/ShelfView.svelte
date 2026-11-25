@@ -26,9 +26,9 @@
   const PAD = 4; // the books start this far in from the case's inner edge
 
   let width = $state(0);
-  // How many books fit on a shelf: the same sum the grid's auto-fill does (its area runs
-  // from the case's inner left edge, inset by PAD, to PAD past the inner right edge).
-  const perRow = $derived(Math.max(1, Math.floor((width - INSET * 2 + GAP) / (BOOK_W + GAP))));
+  // How many books fit on a shelf: the same sum the grid's auto-fill does (its area is the
+  // case's inside, less PAD at each end).
+  const perRow = $derived(Math.max(1, Math.floor((width - (INSET + PAD) * 2 + GAP) / (BOOK_W + GAP))));
   const shelves = $derived(Array.from({ length: Math.max(1, Math.ceil(books.length / perRow)) }, (_, i) => i));
 
 
@@ -125,19 +125,22 @@
     background: linear-gradient(0deg, var(--shelf-shade), transparent);
     pointer-events: none;
   }
-  /* The books sit over the shelves: rows start 34px down and are a shelf apart. */
+  /* The books sit over the shelves: rows start 34px down and are a shelf apart. Whatever
+     width is left over after the last whole book is shared out between the books, so a full
+     shelf runs from end to end instead of leaving a gap on the right. */
   .books {
     position: absolute;
     top: 6px;
-    left: var(--inset);
-    right: calc(var(--inset) - var(--pad));
+    left: calc(var(--inset) + var(--pad));
+    right: calc(var(--inset) + var(--pad));
     z-index: 1;
     display: grid;
     grid-template-columns: repeat(auto-fill, var(--book-w));
+    justify-content: space-between;
     column-gap: var(--gap);
     row-gap: calc(34px + 18px);
     align-items: end;
-    padding: 34px 0 0 var(--pad);
+    padding-top: 34px;
   }
 
   .plank {

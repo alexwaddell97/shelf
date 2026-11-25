@@ -1,41 +1,54 @@
+<p align="center">
+  <img src=".github/images/banner.jpg" alt="shelf: a simple ebook library that gets your books onto your Kobo" width="100%">
+</p>
+
+<p align="center">
+  <a href="https://alexwaddell97.itch.io/shelf"><img src="https://img.shields.io/badge/Get%20it%20on-itch.io-8f5509?style=for-the-badge&logo=itchdotio&logoColor=white" alt="Get Shelf on itch.io"></a>
+  <a href="https://github.com/alexwaddell97/shelf/releases/latest"><img src="https://img.shields.io/badge/Download-Windows%20%C2%B7%20Mac%20%C2%B7%20Linux-2e8580?style=for-the-badge&logo=github&logoColor=white" alt="Download the latest release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/Licence-GPL--3.0-6b5f50?style=for-the-badge" alt="GPL-3.0 licence"></a>
+</p>
+
 # Shelf
 
-A fast, modern ebook library for your computer that keeps your e-reader in sync.
+I made Shelf because I wanted something simpler than calibre for getting books onto my Kobo.
 
-Drop in your EPUBs, and Shelf reads their covers and details, files them neatly, converts them for your device and copies them over. When you plug your e-reader back in, your reading progress comes back. Free, open source and local: your library never leaves your computer.
+Drop your EPUBs in and Shelf sorts out the covers and details. Plug your Kobo in and it sends them over, converted to kepub, and brings your reading progress back. It runs on Windows, macOS and Linux, and your library stays on your computer.
 
-> **Status: early development (v0.1).** The Kobo driver is the first one; other e-readers are on the [roadmap](ROADMAP.md). Expect rough edges, and please report them.
+> Shelf is young. If something's broken or confusing, please [open an issue](https://github.com/alexwaddell97/shelf/issues/new/choose).
 
-## Download
+## What it does
 
-Get Shelf for Windows or macOS from [itch.io](https://alexwaddell97.itch.io/shelf), where you can pay what you like (or nothing), or from [GitHub Releases](https://github.com/alexwaddell97/shelf/releases). Shelf tells you when a new version is out and installs it for you.
+**Your books on shelves.** A bookcase, a cover grid or a table you can sort by any column. Filter by what you're reading or what's on your e-reader, search as you type, and browse by author, series, collection or tag.
 
-The downloads aren't code-signed yet:
+<p align="center"><img src=".github/images/1-shelf.jpg" alt="The library as a bookcase" width="80%"></p>
 
-- **Windows** may show "Windows protected your PC" the first time. Choose **More info**, then **Run anyway**.
-- **macOS** may say Shelf "can't be opened" or is from an unidentified developer. Open **System Settings → Privacy & Security** and choose **Open Anyway** beside the message about Shelf. The Mac version is new: please report anything that doesn't work.
+**Lots of books at once.** Ctrl-click or Shift-click books in the list to set an author or series (numbered in order), add tags and collections, set a rating, fill in missing details or send them all to your Kobo.
 
-## Support Shelf
+<p align="center"><img src=".github/images/2-list-select.jpg" alt="The list view with four books selected" width="80%"></p>
 
-Shelf is free and always will be. If it saves you time, [paying what you like on itch.io](https://alexwaddell97.itch.io/shelf) keeps new versions coming. Bug reports and pull requests help just as much.
+**Tidy details.** Edit titles, authors, series, tags, covers and the rest, stepping from book to book with Previous and Next. Missing a cover or a description? Look the book up on Open Library and pick which fields to take, or fill the gaps for your whole library in one go. Shelf can also find duplicate copies and merge them.
 
-## Features
+<p align="center"><img src=".github/images/3-details.jpg" alt="Editing a book's details" width="80%"></p>
 
-- **Library** — bookshelf, cover grid or a sortable table with the columns you choose; instant search; filters by reading status and device; sorting either way by title, author (by surname), series order, date, rating, progress and more. Browse by author, series, collection or tag.
-- **Bulk editing** — select books in the list (Ctrl/Cmd-click, Shift-click, Ctrl/Cmd+A) to set the author or series (numbered in order), add or remove tags and collections, set a rating, fill in missing details, or send them all to your e-reader.
-- **Details from the web** — look a book up on Open Library (by ISBN, or title and author) and pick which fields to take; or fill in only the missing details and covers for many books at once.
-- **Duplicate finder** — finds books you have more than one copy of (same ISBN, or the same title and author) and merges them, keeping the tags, collections, reading progress and details of every copy.
-- **Full metadata editing** — title, authors and sort name, series and number, rating, collections, tags, publisher, date, language, ISBN and description, with Previous/Next to step through books. Covers can come from an image file or Open Library's cover search. Your edits and covers are written into the copy sent to your e-reader (your library file is left as it is), and books already on the device are updated on the next sync.
-- **Open ebooks with Shelf** — once installed and chosen as the app for `.epub`, `.mobi` or `.azw3`, double-clicking a book adds it to your library and shows it.
-- **Import anything you drop** — drag files onto the window, use *Add books*, or let Shelf watch a folder (your Downloads folder by default) and import new ebooks as they arrive. Duplicates are skipped.
-- **E-reader sync** — Shelf spots your e-reader when you plug it in over USB, sends queued books in the best format for it, and reads reading progress back. For Kobo, EPUBs are converted to kepub, Kobo's own format, for faster page turns, reading stats and better typography. The conversion is built in, so there's nothing extra to install.
-- **Find new books** — search the [Open Library](https://openlibrary.org) catalogue from the same search box. Public-domain books from [Project Gutenberg](https://www.gutenberg.org) can be added to your library in one click; for everything else, Shelf shows links to search stores and libraries for that book.
-- **Wishlist** — save books you don't have yet. When a matching file arrives, it's matched automatically.
-- **Your own sources** — add any shop or library that has a search page, using a URL template like `https://example.com/search?q={query}`.
-- **Bring your calibre library** — Shelf finds your calibre library and imports it with calibre's titles, authors, series, descriptions and covers. calibre's files are only read, never changed, so you can keep using both.
-- **Goodreads** — import your Goodreads library export and your *Want to Read* shelf fills your wishlist, while *Read* and *Currently Reading* mark books in your library. Import a fresh export any time to bring Shelf up to date. It's one-way and needs no password. (Goodreads closed its API in 2020 and retired its shelf feeds in November 2026, so the export is the only way in.)
+**Your Kobo in sync.** Plug it in and Shelf sends whatever's waiting, converted to kepub for faster page turns and Kobo's reading stats. The conversion is built in, so there's nothing else to install. Your progress comes back the same way, and your edits reach the copy on the device on the next sync.
 
-## E-reader support
+<p align="center"><img src=".github/images/4-book.jpg" alt="A book's page, showing it's finished on the Kobo" width="80%"></p>
+
+**And the rest.** Imports your calibre library (read-only, so you can keep using both) and your Goodreads export. Picks up new ebooks from your Downloads folder. Opens `.epub` files when you double-click them. Searches Open Library for new books, adds free ones from Project Gutenberg in one click, and keeps a wishlist that ticks itself off when a book arrives. A dark theme, too.
+
+<p align="center"><img src=".github/images/5-dark.jpg" alt="The cover grid in the dark theme" width="80%"></p>
+
+## Installing
+
+Download Shelf from [itch.io](https://alexwaddell97.itch.io/shelf), where you can pay what you like (including nothing), or from the [latest release](https://github.com/alexwaddell97/shelf/releases/latest) here. Once it's installed, Shelf tells you when there's a new version and updates itself.
+
+The downloads aren't code-signed yet, so your computer may warn you the first time:
+
+- **Windows:** "Windows protected your PC". Click **More info**, then **Run anyway**.
+- **Mac:** open the `.dmg` and drag Shelf into Applications. If it won't open, go to **System Settings → Privacy & Security** and click **Open Anyway**.
+- **Linux (experimental):** make the AppImage executable (`chmod +x Shelf_*.AppImage`) and run it.
+
+## E-readers
 
 | Device | Status | Sends |
 | --- | --- | --- |
@@ -46,41 +59,50 @@ Shelf is free and always will be. If it saves you time, [paying what you like on
 | Boox and other Android readers | Planned | EPUB |
 | KOReader | Planned | EPUB |
 
-Drivers live in [`src-tauri/src/devices/`](src-tauri/src/devices). Adding one is a great first contribution: see [CONTRIBUTING.md](CONTRIBUTING.md).
+Drivers live in [`src-tauri/src/devices/`](src-tauri/src/devices), and adding one is a good first contribution. What's coming next is on the [roadmap](ROADMAP.md).
 
 ## Privacy
 
-Shelf has no accounts, no telemetry and no analytics. It only goes online when you search for books (Open Library and Gutendex, a Project Gutenberg API), look up a book's details (Open Library, sending its title, author and ISBN), download a free book from Project Gutenberg, or open a store link in your browser. A Goodreads import only reads the file you choose. It also checks for a new version of Shelf when it starts and every few hours, by downloading a small file from this project's latest GitHub release; nothing about you or your library is sent.
+No account, no tracking, no analytics. Shelf only goes online when you ask it to: searching for books (Open Library and Gutendex), looking up a book's details (sending Open Library its title, author and ISBN), downloading a free book from Project Gutenberg, or opening a store link in your browser. It also checks this project's latest GitHub release for a new version when it starts and every few hours. Nothing about you or your library is sent.
 
-## Optional tools
+## Where things are kept
 
-- **calibre** — if installed, its `ebook-convert` will be used for formats Shelf can't convert itself (coming with the Kindle driver).
+- **Your books:** `Documents/Shelf Library/<Author>/<Title>.epub` by default.
+- **The library database, covers and device backups:** the app data folder (`%APPDATA%\org.shelfapp.shelf` on Windows, `~/Library/Application Support/org.shelfapp.shelf` on macOS, `~/.local/share/org.shelfapp.shelf` on Linux).
+- **On a Kobo:** books go into a `Shelf` folder. Before each sync, Shelf saves a copy of the device's `KoboReader.sqlite` under `device-backups/` in the app data folder.
 
-## Building from source
+## Building it yourself
 
-Prerequisites: [Rust](https://rustup.rs) (stable), [Node.js](https://nodejs.org) 22 or newer, and the [Tauri prerequisites](https://tauri.app/start/prerequisites/) for your OS (WebView2 and the C++ build tools on Windows, WebKitGTK on Linux, Xcode command-line tools on macOS).
+You'll need [Rust](https://rustup.rs) (stable), [Node.js](https://nodejs.org) 22 or newer, and the [Tauri prerequisites](https://tauri.app/start/prerequisites/) for your system.
 
 ```bash
 npm install
-npm run tauri dev      # run with hot reload
-npm run tauri build    # make an installer for your OS
+npm run tauri dev      # run it with hot reload
+npm run tauri build    # make an installer for your system
 ```
 
-To release for every platform, push a version tag (`git tag v0.2.0 && git push origin v0.2.0`): GitHub Actions builds Windows, macOS and Linux installers into a draft release, with `latest.json` for updates. It needs the updater key as the repository secret `TAURI_SIGNING_PRIVATE_KEY` (plus `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, which can be empty). For a Windows-only build on your own PC, run `npm run release` (add `-- --notes-file notes.md` for release notes). It builds a signed installer and the `latest.json` file that installed copies check for updates, then prints the commands to publish them. Signing needs the private updater key, kept outside the repository (by default in `~/.tauri/shelf-updater.key`); without it, copies already out there can't be sent updates.
-
-Run the checks before sending a pull request:
+Before sending a pull request, run the checks:
 
 ```bash
 npm run check
 cargo test --manifest-path src-tauri/Cargo.toml
 ```
 
-## Where things are stored
+[CONTRIBUTING.md](CONTRIBUTING.md) has more on how the code is laid out.
 
-- **Your books**: `Documents/Shelf Library/<Author>/<Title>.epub` by default.
-- **Library database, covers and device backups**: the app data folder (`%APPDATA%\org.shelfapp.shelf` on Windows, `~/Library/Application Support/org.shelfapp.shelf` on macOS, `~/.local/share/org.shelfapp.shelf` on Linux).
-- **On a Kobo**: books go into a `Shelf` folder on the device. Before each sync, a copy of the device's `KoboReader.sqlite` is saved in the app data folder under `device-backups/`.
+<details>
+<summary>Making a release</summary>
+
+Push a version tag (`git tag v0.2.0 && git push origin v0.2.0`) and GitHub Actions builds the Windows, macOS and Linux installers into a draft release, with the `latest.json` that installed copies check for updates. It needs the updater's private key as the repository secret `TAURI_SIGNING_PRIVATE_KEY`. When publishing the draft, untick **Set as a pre-release** and tick **Set as the latest release**, or installed copies won't see the update.
+
+For a Windows-only build on your own PC, `npm run release` (add `-- --notes-file notes.md` for release notes) builds a signed installer and `latest.json`, then prints the commands to publish them. The key is kept outside the repository, in `~/.tauri/shelf-updater.key` by default. Without it, copies already out there can't be sent updates.
+
+</details>
+
+## Reporting a bug
+
+[Open an issue](https://github.com/alexwaddell97/shelf/issues/new/choose) and say what you did, what you expected and what happened instead. Your system and Shelf's version (in **Settings**, under **About Shelf**) help a lot. Ideas are welcome there too.
 
 ## Licence
 
-Shelf is free software, released under the [GNU General Public License v3.0 or later](LICENSE).
+Shelf is free software, released under the [GNU General Public License v3.0 or later](LICENSE). It's free and will stay free; if it saves you some time, [paying what you like on itch.io](https://alexwaddell97.itch.io/shelf) keeps new versions coming.
