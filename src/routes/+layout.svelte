@@ -20,6 +20,8 @@
   import { startApp } from '$lib/stores/app.svelte';
   import { settings } from '$lib/stores/settings.svelte';
   import { theme } from '$lib/stores/theme.svelte';
+  import { ui } from '$lib/stores/ui.svelte';
+  import UpdatePrompt from '$lib/components/UpdatePrompt.svelte';
 
   let { children }: { children: Snippet } = $props();
 
@@ -49,7 +51,7 @@
 {#if reading}
   {@render children()}
 {:else}
-<div class="app">
+<div class="app" class:rail={ui.rail}>
   <Sidebar />
   <main>
     <TopBar />
@@ -63,6 +65,7 @@
   <SetupWizard />
 {/if}
 <div class="floating">
+  <UpdatePrompt />
   <SyncPanel />
   <CalibrePanel />
   <ImportPanel />
@@ -80,6 +83,9 @@
     /* The sidebar floats inside its column, inset by the float gap. */
     grid-template-columns: calc(var(--nav-w) + var(--float-gap)) minmax(0, 1fr);
     min-height: 100vh;
+  }
+  .app.rail {
+    --nav-w: 64px;
   }
   main {
     min-width: 0;

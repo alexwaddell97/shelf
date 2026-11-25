@@ -77,6 +77,7 @@
     statusLabel
   } from '$lib/format';
   import { popover } from '$lib/popover';
+  import { settledWidth } from '$lib/settledWidth';
   import { bookActions } from '$lib/stores/bookActions.svelte';
   import { devices } from '$lib/stores/devices.svelte';
   import { authorScope, nav, seriesScope } from '$lib/stores/nav.svelte';
@@ -109,29 +110,32 @@
   let menuOpen = $state(false);
   let width = $state(0);
 
-  // Once the heading row pins under the top bar it turns to the same glass, square-cornered,
-  // so the two read as one strip with the rows scrolling beneath.
-  // Rows that scroll past it are clipped at its bottom edge, as in a real table, instead
-  // of showing again above it under the top bar.
+  // Once the heading row pins under the top bar it squares off, and a cover painted with the
+  // page background hides the rows that have scrolled past it, as in a real table. Only the
+  // pinned/unpinned switch touches the page, so scrolling stays cheap.
   let headEl = $state<HTMLDivElement | null>(null);
   let stuck = $state(false);
-  let clipTop = $state(0);
   $effect(() => {
     const el = headEl;
-    const list = listEl;
-    if (!el || !list) return;
+    if (!el) return;
+    const top = parseFloat(getComputedStyle(el).top) || 0;
+    let queued = false;
     const check = () => {
-      const top = parseFloat(getComputedStyle(el).top) || 0;
-      const head = el.getBoundingClientRect();
-      stuck = window.scrollY > 0 && head.top <= top + 0.5;
-      clipTop = stuck ? Math.max(0, Math.round(head.bottom - list.getBoundingClientRect().top)) : 0;
+      queued = false;
+      stuck = window.scrollY > 0 && el.getBoundingClientRect().top <= top + 0.5;
+    };
+    const onscroll = () => {
+      if (!queued) {
+        queued = true;
+        requestAnimationFrame(check);
+      }
     };
     check();
-    window.addEventListener('scroll', check, { passive: true });
-    window.addEventListener('resize', check);
+    window.addEventListener('scroll', onscroll, { passive: true });
+    window.addEventListener('resize', onscroll);
     return () => {
-      window.removeEventListener('scroll', check);
-      window.removeEventListener('resize', check);
+      window.removeEventListener('scroll', onscroll);
+      window.removeEventListener('resize', onscroll);
     };
   });
 
@@ -261,11 +265,10 @@
 {/snippet}
 
 <div class="layout">
-  <div class="table" class:compact bind:clientWidth={width}>
+  <div class="table" class:compact style:--tracks={tracks} use:settledWidth={(w) => (width = w)}>
     <div
       class="row head"
       class:stuck
-      style:grid-template-columns={tracks}
       role="group"
       aria-label="Sort by"
       bind:this={headEl}
@@ -317,7 +320,6 @@
       tabindex="0"
       aria-label="Books"
       aria-activedescendant={selected ? `book-row-${selected.id}` : undefined}
-      style:clip-path={clipTop ? `inset(${clipTop}px 0 0 0 round 0 0 20px 20px)` : undefined}
       bind:this={listEl}
       {onkeydown}
     >
@@ -330,7 +332,6 @@
           data-id={book.id}
           class="row"
           class:on
-          style:grid-template-columns={tracks}
           role="option"
           aria-selected={on}
           tabindex="-1"
@@ -506,6 +507,7 @@
   }
   .row {
     display: grid;
+    grid-template-columns: var(--tracks);
     align-items: center;
     gap: 14px;
     min-height: 64px;
@@ -516,6 +518,15 @@
   }
   .list .row:last-child {
     border-bottom: 0;
+  }
+  /* Rows out of view skip layout and painting; 329 of them otherwise make scrolling and
+     resizing heavy. */
+  .list .row {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 77px;
+  }
+  .compact .list .row {
+    contain-intrinsic-size: auto 41px;
   }
   .list .row:hover {
     background: var(--surface-hover);
@@ -548,6 +559,18 @@
   .row.head.stuck {
     border-radius: 0;
     box-shadow: 0 6px 12px -10px rgba(60, 40, 10, 0.25);
+  }
+  /* Covers the rows above the pinned heading, up to the top of the window, with the page's
+     own (window-fixed) background, so it looks like nothing is there. */
+  .row.head.stuck::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    height: var(--topbar-h, 68px);
+    background: var(--page-bg);
+    pointer-events: none;
   }
   .row.head > span {
     display: flex;

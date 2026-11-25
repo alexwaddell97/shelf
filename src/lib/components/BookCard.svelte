@@ -121,8 +121,7 @@
   }
   /* Up to date is the normal case, so it's a quiet white dot. */
   .badge.on-device {
-    background: rgba(255, 255, 255, 0.92);
-    backdrop-filter: blur(8px);
+    background: rgba(255, 255, 255, 0.94);
     color: var(--teal);
   }
   .badge.queued {

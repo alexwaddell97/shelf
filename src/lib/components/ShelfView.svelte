@@ -6,8 +6,12 @@
   import Cover from './Cover.svelte';
   import Icon from './Icon.svelte';
   import { tip } from '$lib/tooltip';
+  import { settledWidth } from '$lib/settledWidth';
 
   // The library as a bookcase: covers standing on wooden shelves, one plank per row.
+  // The books are one grid that the browser wraps by itself, and the shelves are a separate
+  // layer behind them at the same spacing. Resizing (or the sidebar collapsing) then only
+  // re-flows the books instead of rebuilding every row and its covers.
 
   interface Props {
     books: Book[];
@@ -16,17 +20,16 @@
 
   let { books, onopen }: Props = $props();
 
-  const BOOK_W = 128; // every book is the same size, in px
+  const BOOK_W = 128; // every book is the same size, in px (covers are 2:3, so 192 tall)
   const GAP = 16;
   const INSET = 28; // space between the case's sides and the books
+  const PAD = 4; // the books start this far in from the case's inner edge
 
   let width = $state(0);
+  // How many books fit on a shelf: the same sum the grid's auto-fill does (its area runs
+  // from the case's inner left edge, inset by PAD, to PAD past the inner right edge).
   const perRow = $derived(Math.max(1, Math.floor((width - INSET * 2 + GAP) / (BOOK_W + GAP))));
-  const rows = $derived.by(() => {
-    const out: Book[][] = [];
-    for (let i = 0; i < books.length; i += perRow) out.push(books.slice(i, i + perRow));
-    return out;
-  });
+  const shelves = $derived(Array.from({ length: Math.max(1, Math.ceil(books.length / perRow)) }, (_, i) => i));
 
 
   function oncontextmenu(e: MouseEvent, book: Book) {
@@ -41,46 +44,53 @@
   }
 </script>
 
-<div class="bookcase" bind:clientWidth={width} style:--inset="{INSET}px" style:--gap="{GAP}px">
-  {#each rows as row, r (r)}
-    <div class="shelf">
-      <div class="books">
-        {#each row as book (book.id)}
-          {@const sync = devices.bookSync(book)}
-          {@const series = seriesLabel(book)}
-          <button
-            class="book"
-            style:width="{BOOK_W}px"
-            onclick={() => onopen(book)}
-            oncontextmenu={(e) => oncontextmenu(e, book)}
-            aria-haspopup="menu"
-            aria-label="{book.title} by {book.author}. {sync.label}, {statusLabel(book)}"
-          >
-            <span class="cover">
-              <Cover title={book.title} author={book.author} coverPath={book.coverPath} reserveCorner />
-              {#if sync.state === 'synced'}
-                <span class="dot on-device" aria-hidden="true" use:tip={sync.tip}><Icon name="check" size={13} /></span>
-              {:else if sync.state === 'waiting'}
-                <span class="dot queued" aria-hidden="true" use:tip={sync.tip}><Icon name="sync" size={13} /></span>
-              {/if}
-              {#if book.status === 'reading'}
-                <span class="progress" aria-hidden="true"><span style:width="{book.progress}%"></span></span>
-              {:else if book.status === 'finished'}
-                <span class="progress done" aria-hidden="true"><span style:width="100%"></span></span>
-              {/if}
-            </span>
-            <span class="label" aria-hidden="true">
-              <strong>{book.title}</strong>
-              <span>{book.author}</span>
-              {#if series}<span class="mono series">{series}</span>{/if}
-              <span class="mono state">{sync.label} · {statusLabel(book)}</span>
-            </span>
-          </button>
-        {/each}
-      </div>
-      <div class="plank" aria-hidden="true"></div>
-    </div>
-  {/each}
+<div
+  class="bookcase"
+  use:settledWidth={(w) => (width = w)}
+  style:--inset="{INSET}px"
+  style:--gap="{GAP}px"
+  style:--pad="{PAD}px"
+  style:--book-w="{BOOK_W}px"
+>
+  <div class="shelves" aria-hidden="true">
+    {#each shelves as r (r)}
+      <div class="shelf"><div class="plank"></div></div>
+    {/each}
+  </div>
+  <div class="books">
+    {#each books as book (book.id)}
+      {@const sync = devices.bookSync(book)}
+      {@const series = seriesLabel(book)}
+      <button
+        class="book"
+        style:width="{BOOK_W}px"
+        onclick={() => onopen(book)}
+        oncontextmenu={(e) => oncontextmenu(e, book)}
+        aria-haspopup="menu"
+        aria-label="{book.title} by {book.author}. {sync.label}, {statusLabel(book)}"
+      >
+        <span class="cover">
+          <Cover title={book.title} author={book.author} coverPath={book.coverPath} reserveCorner />
+          {#if sync.state === 'synced'}
+            <span class="dot on-device" aria-hidden="true" use:tip={sync.tip}><Icon name="check" size={13} /></span>
+          {:else if sync.state === 'waiting'}
+            <span class="dot queued" aria-hidden="true" use:tip={sync.tip}><Icon name="sync" size={13} /></span>
+          {/if}
+          {#if book.status === 'reading'}
+            <span class="progress" aria-hidden="true"><span style:width="{book.progress}%"></span></span>
+          {:else if book.status === 'finished'}
+            <span class="progress done" aria-hidden="true"><span style:width="100%"></span></span>
+          {/if}
+        </span>
+        <span class="label" aria-hidden="true">
+          <strong>{book.title}</strong>
+          <span>{book.author}</span>
+          {#if series}<span class="mono series">{series}</span>{/if}
+          <span class="mono state">{sync.label} · {statusLabel(book)}</span>
+        </span>
+      </button>
+    {/each}
+  </div>
 </div>
 
 <style>
@@ -99,9 +109,10 @@
       0 18px 40px var(--case-drop);
   }
 
+  /* Each shelf: space above the books, the books' height, then the plank. */
   .shelf {
     position: relative;
-    padding-top: 34px;
+    padding-top: calc(34px + var(--book-w) * 1.5);
   }
   /* Light falls from above, so the wall just above each plank is in shadow. */
   .shelf::before {
@@ -114,13 +125,19 @@
     background: linear-gradient(0deg, var(--shelf-shade), transparent);
     pointer-events: none;
   }
+  /* The books sit over the shelves: rows start 34px down and are a shelf apart. */
   .books {
-    position: relative;
+    position: absolute;
+    top: 6px;
+    left: var(--inset);
+    right: calc(var(--inset) - var(--pad));
     z-index: 1;
-    display: flex;
-    align-items: flex-end;
-    gap: var(--gap);
-    padding: 0 4px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, var(--book-w));
+    column-gap: var(--gap);
+    row-gap: calc(34px + 18px);
+    align-items: end;
+    padding: 34px 0 0 var(--pad);
   }
 
   .plank {
@@ -209,8 +226,7 @@
   /* Sync badges. Up to date is the normal case, so it's a quiet white dot; only a book
      waiting for the next sync gets a bold blue badge. */
   .on-device {
-    background: rgba(255, 255, 255, 0.92);
-    backdrop-filter: blur(8px);
+    background: rgba(255, 255, 255, 0.94);
     color: var(--teal);
   }
   .queued {

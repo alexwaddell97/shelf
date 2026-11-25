@@ -6,12 +6,14 @@ import { devices } from './devices.svelte';
 import { toasts } from './toast.svelte';
 
 // New versions of Shelf. The app checks a small file on the latest GitHub release a little
-// after it starts and then every few hours; when there's something newer, the sidebar
-// offers it until you install it or say "Later". Updates are signed, and the updater
-// refuses any download that doesn't match Shelf's public key.
+// after it starts and then every few hours; when there's something newer, a popup offers
+// it. Dismissing it hides that version's popup for good; it stays in Settings (with a dot on
+// the Settings item) until installed. Updates are signed, and the updater refuses any
+// download that doesn't match Shelf's public key.
 
 const FIRST_CHECK_MS = 15_000;
 const EVERY_MS = 6 * 60 * 60 * 1000;
+const DISMISSED_KEY = 'shelf.updateDismissed';
 
 export type UpdatePhase = 'idle' | 'checking' | 'downloading' | 'installing';
 
@@ -24,10 +26,30 @@ class UpdateStore {
   /** 0–1 while downloading, when the size is known. */
   progress = $state<number | null>(null);
   lastChecked = $state<Date | null>(null);
-  /** "Later" was pressed: hide the sidebar card until the next launch. */
-  snoozed = $state(false);
+  /** The version whose popup was dismissed. */
+  dismissed = $state(loadDismissed());
 
   #update: Update | null = null;
+
+  get busy() {
+    return this.phase === 'downloading' || this.phase === 'installing';
+  }
+
+  /** Show the popup: a new version you haven't dismissed, or one that's installing. */
+  get prompting() {
+    return !!this.available && (this.available.version !== this.dismissed || this.busy);
+  }
+
+  /** "Not now": hide this version's popup. Settings still offers it. */
+  dismiss() {
+    if (!this.available) return;
+    this.dismissed = this.available.version;
+    try {
+      localStorage.setItem(DISMISSED_KEY, this.dismissed);
+    } catch {
+      /* storage unavailable */
+    }
+  }
 
   /** Starts background checks. Returns a function that stops them. */
   start(): () => void {
@@ -94,6 +116,14 @@ class UpdateStore {
       this.progress = null;
       toasts.error('The update did not install', errorMessage(e));
     }
+  }
+}
+
+function loadDismissed(): string | null {
+  try {
+    return localStorage.getItem(DISMISSED_KEY);
+  } catch {
+    return null;
   }
 }
 
