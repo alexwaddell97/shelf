@@ -6,6 +6,8 @@
   import { nav, type BrowseKind, type Section } from '$lib/stores/nav.svelte';
   import { settings } from '$lib/stores/settings.svelte';
   import { theme } from '$lib/stores/theme.svelte';
+  import { updates } from '$lib/stores/updates.svelte';
+  import { tip } from '$lib/tooltip';
   import { wishlist } from '$lib/stores/wishlist.svelte';
   import Icon, { type IconName } from './Icon.svelte';
 
@@ -32,6 +34,10 @@
   const device = $derived(devices.connected[0]);
   const queue = $derived(devices.queueCount);
   const folders = $derived(settings.value?.watchFolders ?? []);
+
+  const update = $derived(updates.available && !updates.snoozed ? updates.available : null);
+  const busy = $derived(updates.phase === 'downloading' || updates.phase === 'installing');
+  const whatsNew = $derived(update?.notes ? `What's new in ${update.version}\n${update.notes}` : null);
 </script>
 
 <nav aria-label="Main">
@@ -83,6 +89,32 @@
   </div>
 
   <div class="bottom">
+    {#if update}
+      <div class="card update" role="status">
+        <div class="card-title" use:tip={whatsNew}>
+          <Icon name="drop" size={16} />
+          <span class="update-title">Shelf {update.version} is ready</span>
+        </div>
+        {#if busy}
+          <div class="update-bar" aria-hidden="true">
+            <span class:indeterminate={updates.progress === null} style:width="{Math.round((updates.progress ?? 0.3) * 100)}%"></span>
+          </div>
+          <span class="card-sub">
+            {updates.phase === 'installing'
+              ? 'Installing… Shelf will restart'
+              : `Downloading${updates.progress === null ? '…' : ` ${Math.round(updates.progress * 100)}%`}`}
+          </span>
+        {:else}
+          <div class="update-actions">
+            <button class="btn sm primary" onclick={() => updates.install()}>Update</button>
+            <button class="btn sm later" onclick={() => (updates.snoozed = true)}>Later</button>
+          </div>
+        {/if}
+      </div>
+      <button class="rail-update" aria-label="Update to Shelf {update.version}" title="Update to Shelf {update.version}" disabled={busy} onclick={() => updates.install()}>
+        <Icon name="drop" size={18} />
+      </button>
+    {/if}
     {#if folders.length > 0}
       <div class="card watch">
         <div class="card-title">
@@ -291,6 +323,54 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  /* A new version: the accent card at the top of the stack. */
+  .card.update {
+    gap: 10px;
+    background: color-mix(in srgb, var(--accent) 10%, var(--glass-tint));
+    box-shadow: var(--glass-shine), 0 0 0 0.5px color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+  .card.update .card-title {
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .update-title {
+    color: var(--text);
+  }
+  .update-actions {
+    display: flex;
+    gap: 6px;
+  }
+  .update-actions .btn {
+    flex: 1;
+  }
+  .update-bar {
+    height: 4px;
+    border-radius: 999px;
+    background: var(--track);
+    overflow: hidden;
+  }
+  .update-bar span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--accent);
+    transition: width 0.2s linear;
+  }
+  .update-bar .indeterminate {
+    animation: slide 1.2s var(--ease) infinite alternate;
+  }
+  @keyframes slide {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(340%);
+    }
+  }
+  /* In the narrow icon rail the card becomes a single accent button. */
+  .rail-update {
+    display: none;
+  }
   .watch .card-sub {
     font-size: 11px;
     color: var(--faint);
@@ -335,8 +415,20 @@
     .label,
     .count,
     .watch,
+    .card.update,
     .device-text {
       display: none;
+    }
+    .rail-update {
+      display: grid;
+      place-items: center;
+      width: 40px;
+      height: 40px;
+      margin: 0 auto;
+      border: 0;
+      border-radius: 12px;
+      background: var(--accent);
+      color: var(--on-accent);
     }
     .items,
     .bottom {

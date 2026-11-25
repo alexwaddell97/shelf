@@ -6,9 +6,19 @@ Drop in your EPUBs, and Shelf reads their covers and details, files them neatly,
 
 > **Status: early development (v0.1).** The Kobo driver is the first one; other e-readers are on the [roadmap](ROADMAP.md). Expect rough edges, and please report them.
 
+## Download
+
+Get the Windows installer from [itch.io](https://alexwaddell97.itch.io/shelf), where you can pay what you like (or nothing), or from [GitHub Releases](https://github.com/alexwaddell97/shelf/releases). Shelf tells you when a new version is out and installs it for you.
+
+The installer isn't code-signed yet, so Windows may show "Windows protected your PC" the first time. Choose **More info**, then **Run anyway**.
+
+## Support Shelf
+
+Shelf is free and always will be. If it saves you time, [paying what you like on itch.io](https://alexwaddell97.itch.io/shelf) keeps new versions coming. Bug reports and pull requests help just as much.
+
 ## Features
 
-- **Library** — cover grid, instant search, filters by reading status and device, and sorting by title, author (by surname), series order, publication date or rating. Browse by author, series, collection or tag.
+- **Library** — bookshelf, cover grid or a sortable table with the columns you choose; instant search; filters by reading status and device; sorting either way by title, author (by surname), series order, date, rating, progress and more. Browse by author, series, collection or tag.
 - **Full metadata editing** — title, authors and sort name, series and number, rating, collections, tags, publisher, date, language, ISBN and description, with Previous/Next to step through books. Covers can come from an image file or Open Library's cover search. Your edits and covers are written into the copy sent to your e-reader (your library file is left as it is), and books already on the device are updated on the next sync.
 - **Open ebooks with Shelf** — once installed and chosen as the app for `.epub`, `.mobi` or `.azw3`, double-clicking a book adds it to your library and shows it.
 - **Import anything you drop** — drag files onto the window, use *Add books*, or let Shelf watch a folder (your Downloads folder by default) and import new ebooks as they arrive. Duplicates are skipped.
@@ -34,7 +44,7 @@ Drivers live in [`src-tauri/src/devices/`](src-tauri/src/devices). Adding one is
 
 ## Privacy
 
-Shelf has no accounts, no telemetry and no analytics. It only goes online when you search for books (Open Library and Gutendex, a Project Gutenberg API), download a free book from Project Gutenberg, open a store link in your browser, or — if you connect Goodreads — read your public shelf feeds once an hour.
+Shelf has no accounts, no telemetry and no analytics. It only goes online when you search for books (Open Library and Gutendex, a Project Gutenberg API), download a free book from Project Gutenberg, open a store link in your browser, or — if you connect Goodreads — read your public shelf feeds once an hour. It also checks for a new version of Shelf when it starts and every few hours, by downloading a small file from this project's latest GitHub release; nothing about you or your library is sent.
 
 ## Optional tools
 
@@ -49,6 +59,8 @@ npm install
 npm run tauri dev      # run with hot reload
 npm run tauri build    # make an installer for your OS
 ```
+
+To make a release, run `npm run release` (add `-- --notes-file notes.md` for release notes). It builds a signed installer and the `latest.json` file that installed copies check for updates, then prints the commands to publish them. Signing needs the private updater key, kept outside the repository (by default in `~/.tauri/shelf-updater.key`); without it, copies already out there can't be sent updates.
 
 Run the checks before sending a pull request:
 

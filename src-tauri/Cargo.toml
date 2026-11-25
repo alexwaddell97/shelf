@@ -36,6 +36,8 @@ fs2 = "0.4"
 urlencoding = "2"
 quick-xml = "0.37"
 image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "gif"] }
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.60", features = ["Win32_System_Diagnostics_Debug"] }

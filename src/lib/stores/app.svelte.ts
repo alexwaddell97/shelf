@@ -9,6 +9,7 @@ import { library } from './library.svelte';
 import { nav } from './nav.svelte';
 import { settings } from './settings.svelte';
 import { toasts } from './toast.svelte';
+import { updates } from './updates.svelte';
 import { wishlist } from './wishlist.svelte';
 
 /**
@@ -42,6 +43,7 @@ export function startApp(): () => void {
   void wishlist.refresh();
   void devices.refresh();
   void goodreads.load();
+  const stopUpdates = updates.start();
   void (async () => {
     try {
       const pending = await takePendingOpen();
@@ -103,6 +105,7 @@ export function startApp(): () => void {
 
   return () => {
     stopped = true;
+    stopUpdates();
     unlisteners.forEach((un) => un());
     window.removeEventListener('dragover', swallow);
     window.removeEventListener('drop', swallow);

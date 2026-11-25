@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { openDefaultAppsSettings, type Source } from '$lib/api';
+  import { openDefaultAppsSettings, openUrl, type Source } from '$lib/api';
   import Icon from '$lib/components/Icon.svelte';
   import Toggle from '$lib/components/Toggle.svelte';
   import { onMount } from 'svelte';
@@ -8,6 +8,9 @@
   import { settings } from '$lib/stores/settings.svelte';
   import { theme, type ThemePref } from '$lib/stores/theme.svelte';
   import { attempt, toasts } from '$lib/stores/toast.svelte';
+  import { updates } from '$lib/stores/updates.svelte';
+  import { relativeDate } from '$lib/format';
+  import { SOURCE_URL, SUPPORT_URL } from '$lib/links';
 
   const THEMES: { id: ThemePref; label: string; icon: 'monitor' | 'sun' | 'moon' }[] = [
     { id: 'light', label: 'Light', icon: 'sun' },
@@ -265,6 +268,42 @@
         <span class="folder-path mono" title={settings.value?.libraryDir}>{settings.value?.libraryDir ?? '…'}</span>
       </div>
     </div>
+
+    <div class="panel card">
+      <h2>About Shelf</h2>
+      <p class="small">
+        Version {updates.current || '…'}{#if updates.lastChecked}&nbsp;· checked for updates {relativeDate(updates.lastChecked.toISOString()).toLowerCase()}{/if}
+      </p>
+      {#if updates.available}
+        <p class="small status" role="status">Shelf {updates.available.version} is ready to install.</p>
+        {#if updates.available.notes}<p class="small notes">{updates.available.notes}</p>{/if}
+      {/if}
+      <div class="calibre-btns">
+        {#if updates.available}
+          <button class="btn sm primary" disabled={updates.phase !== 'idle'} onclick={() => updates.install()}>
+            {updates.phase === 'downloading' ? 'Downloading…' : updates.phase === 'installing' ? 'Installing…' : `Update to ${updates.available.version}`}
+          </button>
+        {:else}
+          <button class="btn sm" disabled={updates.phase !== 'idle'} onclick={() => updates.check(true)}>
+            {updates.phase === 'checking' ? 'Checking…' : 'Check for updates'}
+          </button>
+        {/if}
+      </div>
+      <p class="small">
+        Shelf is free and open source. If it saves you time, you can pay what you like for it, which keeps new versions
+        coming.
+      </p>
+      <div class="calibre-btns">
+        <button class="btn sm" onclick={() => attempt('Could not open the link', () => openUrl(SUPPORT_URL))}>
+          <Icon name="external" size={15} />
+          Support Shelf
+        </button>
+        <button class="btn sm" onclick={() => attempt('Could not open the link', () => openUrl(SOURCE_URL))}>
+          <Icon name="external" size={15} />
+          Source code
+        </button>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -422,6 +461,9 @@
   .small {
     font-size: 13px;
     color: var(--muted);
+  }
+  .notes {
+    white-space: pre-line;
   }
   .faint {
     color: var(--faint);

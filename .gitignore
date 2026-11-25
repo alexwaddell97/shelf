@@ -10,3 +10,10 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
 glass-preview.jpg
+
+# Release output, and never the updater signing key
+/release
+*.key
+
+# Store page drafts (screenshots show a personal library)
+/store

@@ -30,6 +30,8 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .setup(|app| {
             let state = state::AppState::init(app.handle())?;
             // Let the interface load cover images from wherever the data folder is.

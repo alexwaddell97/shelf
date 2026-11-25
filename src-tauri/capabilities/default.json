@@ -8,6 +8,8 @@
     "core:window:allow-set-theme",
     "core:window:allow-set-background-color",
     "opener:default",
-    "dialog:default"
+    "dialog:default",
+    "updater:default",
+    "process:allow-restart"
   ]
 }
